@@ -16,8 +16,7 @@ typedef struct {
 
 typedef struct{
     char news_content[300];
-    int effect[8]; // [0,0,1,0,1,0,0,0]: merchandise no.3 & no.5 is affected
-    float fluctuation; // rise or fall
+    float fluctuations[8]; // example: {1.0, 1.0, 1.3, 1.0, 0.8, 1.0, 1.0, 1.0}
     int isFake;
 } News;
 
@@ -36,18 +35,20 @@ const char WELCOME_AND_CHARACTERS[300] =
 "\t挑戰: 若全程做空, 獲得1百萬積分\n"
 "no.3: 虧損鬼才\n"
 "\t能力: 最終結算時, 將2倍的虧損金額加至對手積分\n"
-"\t挑戰: 若全程虧損且每次虧損金額不小於現有積分之10%%, 獲得3百萬積分\n\n"
+"\t挑戰: 若全程虧損且每次虧損金額不小於於現有積分之10%%, 獲得3百萬積分\n\n"
 "請輸入整數(0 ~ 3)選擇角色: ";
-const char NEWS_CONTENTS[][200] = {
+const int TOTAL_NEWS = 30;
+const char NEWS_CONTENTS[][200] = { //TBD
     "AAA",
     "BBB",
     "CCC"
 };
-const int NEWS_FLUCTUATIONS[200] = {
-    1.1, 1.2, 1.3, 0.9, 0.8,
-    0.7
+const int NEWS_FLUCTUATIONS[][200] = { //TBD
+    {1.0, 1.0, 1.3, 1.0, 0.8, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.0},
+    {1.4, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}
 };
-const char MERCHDISE[8];
+const char ITEM_NAMES[8] = {"麥當勞股票", "鑽石"}; //TBD
 
 //global variables
 int listenfd, maxfd;
@@ -55,7 +56,8 @@ fd_set allset;
 Player players[MAX_PLAYERS]; //for saving active players' info
 int active_players;
 int current_round = 1;
-int flag1, flag2, flag3, flag4, flag5;
+int flag1, flag2, flag3, flag4, flag5; //for leaving infinite loop
+int item_prices[8] = {1000, 100000}; //TBD
 
 //functions
 void handle_new();
@@ -79,18 +81,33 @@ int main(){
         players[i].connfd = -1; //no active player in the beginning
 
     //Before the game
-    for(int i=0; i<MAX_PLAYERS; i++)
+    for(int i = 0; i < MAX_PLAYERS; i++)
     	handle_new(); //wait for players
     
+    srand(time(0));
+
     //Round 1
-    for(int i=0; i<MAX_PLAYERS; i++){
+    int rand_i[3];
+    while(rand_i[0] == rand_i[1] || rand_i[1] == rand_i[2] || rand_i[0] == rand_i[2])
+        for(int i = 0; i < 3; i++)
+            rand_i[i] = rand() % TOTAL_NEWS;
+
+    News news_round1[3];
+    for(int i = 0; i < 3; i++){
+        snprintf(news_round1[i].news_content, sizeof(news_round1[i].news_content), "%s", NEWS_CONTENTS[rand_i[i]]);
+        for (int j = 0; j < 8; j++) {
+            news_round1[i].fluctuations[j] = NEWS_FLUCTUATIONS[rand_i[i]][j];
+        }
+    }
+
+    for(int i = 0; i < MAX_PLAYERS; i++){
         if(players[i].connfd != -1){
             if(players[i].character == 1){
                 players[i].points = 2000000; //init points - 交大富二代
-                Writen(players[i].connfd, "Round 1\n You have 2,000,000 points!\n", 35);
+                Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35);
             }else{
                 players[i].points = 1000000; //init points - others
-                Writen(players[i].connfd, "Round 1\n You have 1,000,000 points!\n", 35);
+                Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35);
             }
         }
     }
@@ -103,7 +120,7 @@ int main(){
         Select(maxfd + 1, &rset, NULL, NULL, NULL);
         for (int i = 0; i < MAX_PLAYERS; i++)
             if (players[i].connfd != -1 && FD_ISSET(players[i].connfd, &rset))
-                handle_in_round_msg(i);
+                handle_in_round_msg(i); //select and handle readable connfd
     }
 
     //Round 2
