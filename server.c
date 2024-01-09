@@ -1,26 +1,30 @@
-//libraries
+//Libraries
 #include "unp.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-//structures
+//Structures
 typedef struct {
     int connfd;
     char name[100];
     //char ip[100];
     int character;
     int points;
-    int isAchieve;
+    int bought_amounts[8]; // +,- : buy,sell
+    int loan_dollars;
+    int isFin; //bool
+    int isSetFake; //bool
+    int isAchieved; //bool
 } Player;
 
 typedef struct{
     char news_content[300];
-    float fluctuations[8]; // example: {1.0, 1.0, 1.3, 1.0, 0.8, 1.0, 1.0, 1.0}
-    int isFake;
+    char details_content[300];
+    float fluctuations[8]; //example: {0.0, 0.0, 0.3, 0.0, -0.2, 0.0, 0.0, 0.0}
 } News;
 
-//constant global variables
+//Constant Global Variables
 const int MAX_PLAYERS = 2;
 const char WELCOME_AND_CHARACTERS[300] = 
 "Welcome! Choose your character:\n\n"
@@ -37,31 +41,36 @@ const char WELCOME_AND_CHARACTERS[300] =
 "\t能力: 最終結算時, 將2倍的虧損金額加至對手積分\n"
 "\t挑戰: 若全程虧損且每次虧損金額不小於於現有積分之10%%, 獲得3百萬積分\n\n"
 "請輸入整數(0 ~ 3)選擇角色: ";
-const int TOTAL_NEWS = 30;
+const int TOTAL_NEWS = 30; //TBD
 const char NEWS_CONTENTS[][200] = { //TBD
     "AAA",
-    "BBB",
-    "CCC"
+    "BBB"
 };
-const int NEWS_FLUCTUATIONS[][200] = { //TBD
-    {1.0, 1.0, 1.3, 1.0, 0.8, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 1.0},
-    {1.4, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}
+const float NEWS_FLUCTUATIONS[][200] = { //TBD
+    {0.0, 0.0, 0.3, 0.0, -0.2, 0.0, 0.0, 0.0},
+    {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0}
 };
 const char ITEM_NAMES[8] = {"麥當勞股票", "鑽石"}; //TBD
+const int ITEM_INIT_PRICE[8] = {1000, 10000}; //TBD
+const int OP_INFO_PRICE = 200000; //TBD
+const int OP_FAKE_PRICE = 500000; //TBD
 
-//global variables
+//Global Variables
 int listenfd, maxfd;
 fd_set allset;
 Player players[MAX_PLAYERS]; //for saving active players' info
 int active_players;
 int current_round = 1;
 int flag1, flag2, flag3, flag4, flag5; //for leaving infinite loop
-int item_prices[8] = {1000, 100000}; //TBD
+int item_prices[8]; 
 
-//functions
+//Functions
 void handle_new();
 void handle_in_round_msg(int);
+int isAllFin();
+News* get_3_random_news();
+int extract_instr(char*);
+int isContainDollarSign(char*);
 
 int main(){
     //Socket settings
@@ -80,42 +89,32 @@ int main(){
     for (int i = 0; i < MAX_PLAYERS; i++) 
         players[i].connfd = -1; //no active player in the beginning
 
-    //Before the game
+    //Before game
     for(int i = 0; i < MAX_PLAYERS; i++)
     	handle_new(); //wait for players
-    
-    srand(time(0));
 
-    //Round 1
-    int rand_i[3];
-    while(rand_i[0] == rand_i[1] || rand_i[1] == rand_i[2] || rand_i[0] == rand_i[2])
-        for(int i = 0; i < 3; i++)
-            rand_i[i] = rand() % TOTAL_NEWS;
-
-    News news_round1[3];
-    for(int i = 0; i < 3; i++){
-        snprintf(news_round1[i].news_content, sizeof(news_round1[i].news_content), "%s", NEWS_CONTENTS[rand_i[i]]);
-        for (int j = 0; j < 8; j++) {
-            news_round1[i].fluctuations[j] = NEWS_FLUCTUATIONS[rand_i[i]][j];
-        }
-    }
+    //Round 1 - prepare phase
+    News *news_round1 = get_3_random_news();
 
     for(int i = 0; i < MAX_PLAYERS; i++){
         if(players[i].connfd != -1){
             if(players[i].character == 1){
-                players[i].points = 2000000; //init points - 交大富二代
-                Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35);
-            }else{
-                players[i].points = 1000000; //init points - others
-                Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35);
+                players[i].points += 1000000; //init points - 交大富二代
+                Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35); //send round and points info
             }
+            else
+                Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35); //send round and points info
+
+            char buffer4[MAXLINE];
+            sprintf(buffer4, "MARKET NEWS:\nNEWS 1: %s\nNEWS 2: %s\nNEWS 3: %s\n\n",
+                    news_round1[0].news_content, news_round1[1].news_content, news_round1[2].news_content);
+            Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
+            memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
     }
 
-    while (1) {
-        if(flag1)
-            break;
-
+    //Round 1 - player phase
+    while (!isAllFin()) {
         fd_set rset = allset;
         Select(maxfd + 1, &rset, NULL, NULL, NULL);
         for (int i = 0; i < MAX_PLAYERS; i++)
@@ -123,15 +122,21 @@ int main(){
                 handle_in_round_msg(i); //select and handle readable connfd
     }
 
+    //Round 1 - closing phase
+
     //Round 2
+    News *news_round2 = get_3_random_news();
 
     //Round 3
+    News *news_round3 = get_3_random_news();
 
     //Round 4
+    News *news_round4 = get_3_random_news();
 
     //Round 5
+    News *news_round5 = get_3_random_news();
 
-    //After the game
+    //After game
 
 	return 0;
 }
@@ -152,14 +157,20 @@ void handle_new(){
 
     for (int i = 0; i < MAX_PLAYERS; i++) {
         if (players[i].connfd == -1) { //find an empty players slot
-            players[i].connfd = connfd; //save connfd
-            strncpy(players[i].name, buffer1, strlen(buffer1)); //save name
-            //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr))); //save ip
+            //init player info
+            players[i].connfd = connfd;
+            strncpy(players[i].name, buffer1, strlen(buffer1));
+            //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr)));
+            players[i].points = 1000000; 
+            players[i].loan_dollars = 0;
+            players[i].isAllFin = 0;
+            players[i].isSetFake = 0;
+            players[i].isAchieved = 0;
 
             Writen(players[i].connfd, WELCOME_AND_CHARACTERS, strlen(WELCOME_AND_CHARACTERS)); //send character list
 
-            int buffer2;
-            int tmp2 = Read(connfd, &buffer2, sizeof(buffer2)); //read character
+            char buffer2[MAXLINE];
+            int tmp2 = Read(connfd, buffer2, sizeof(buffer2)); //read character
             players[i].character = buffer2[0] - '0'; //save character
 
             memset(buffer1, 0, sizeof(buffer1)); //clear buffer1
@@ -172,5 +183,171 @@ void handle_new(){
 }
 
 void handle_in_round_msg(int player_i){
+    char buffer3[MAXLINE];
+	int nbytes = Read(players[player_i].connfd, buffer3, MAXLINE);
+	buffer3[nbytes] = 0;
+    
+    //player leaving
+    if (nbytes <= 0) {
+        active_players--;
+        
+        if(nbytes == 0)
+        	Writen(players[player_i].connfd, "Bye!\n", 5); //leave by Ctrl+D
+        
+        Close(players[player_i].connfd);
+        FD_CLR(players[player_i].connfd, &allset);
+        players[player_i].connfd = -1;
+        memset(players[player_i].name, 0, sizeof(players[player_i].name)); //clear player name
+		//memset(players[player_i].ip, 0, sizeof(players[player_i].ip)); //clear player ip
+        
+        char leaving[MAXLINE];
+        if(active_players == 1){
+	    	sprintf(leaving, "(%s left. You win!)\n", players[player_i].name); //prepare leaving msg
+	    	for (int i = 0; i < MAX_PLAYERS; i++)
+	            if (players[i].connfd != -1)
+	                Writen(players[i].connfd, leaving, strlen(leaving)); //send leaving msg to last player
+			memset(leaving, 0, sizeof(leaving)); //clear leaving
+		}
+		else{
+	    	sprintf(leaving, "(%s left, %d players left)\n", players[player_i].name, active_players); //prepare leaving msg
+	    	for (int i = 0; i < MAX_PLAYERS; i++)
+	            if (players[i].connfd != -1)
+	                Writen(players[i].connfd, leaving, strlen(leaving));  //send leaving msg to active players
+			memset(leaving, 0, sizeof(leaving)); //clear leaving
+		}
+    }
 
+    //player instructions
+	else {
+		int instr = extract_instr(buffer3);
+
+        char not_enough[MAXLINE];
+        switch (instr){
+            case 1: //long with $dollar
+                break;
+            
+            case 2: //long with amount
+                break;
+            
+            case 3: //short with $dollar
+                break;
+            
+            case 4: //short with amount
+                break;
+            
+            case 5: //info
+                if(players[player_i].points < OP_INFO_PRICE){
+                    sprintf(not_enough, "(info operation requires %d points, you only have %d points.)\n", OP_INFO_PRICE, players[player_i].points);
+                    Writen(players[player_i].connfd, not_enough, strlen(not_enough));
+                }
+                else{
+                    players[player_i].points -= OP_INFO_PRICE;
+                    for (int i = 0; i < MAX_USERS; i++)
+                        if (i != player_i && players[i].connfd != -1)
+                            players[i].isSetFake = 1;
+                }
+                break;
+            
+            case 6: //fake
+                if(players[player_i].points < OP_FAKE_PRICE){
+                    sprintf(not_enough, "(fake operation requires %d points, you only have %d points.)\n", OP_FAKE_PRICE, players[player_i].points);
+                    Writen(players[player_i].connfd, not_enough, strlen(not_enough));
+                }
+                else{
+                    players[player_i].points -= OP_FAKE_PRICE;
+                    for (int i = 0; i < MAX_USERS; i++)
+                        if (i != player_i && players[i].connfd != -1)
+                            players[i].isSetFake = 1;
+                }
+                break;
+            
+            case 7: //loan
+                break;
+            
+            case 8: //finish
+                players[player_i].isFin = 1;
+                break;
+            
+            // case -1: //invalid
+            //     break;
+        }
+    }
+
+    memset(buffer3, 0, sizeof(buffer3));
+}
+
+News* get_3_random_news(){
+    srand(time(0));
+
+    int rand_i[3]; // for randomly picking news
+    while(rand_i[0] == rand_i[1] || rand_i[1] == rand_i[2] || rand_i[0] == rand_i[2])
+        for(int i = 0; i < 3; i++)
+            rand_i[i] = rand() % TOTAL_NEWS;
+
+    News n[3]; //market news to send
+    for(int i = 0; i < 3; i++){
+        strncpy(n[i].news_content, NEWS_CONTENTS[rand_i[i]], strlen(NEWS_CONTENTS[rand_i[i]])); //save news content
+        for (int j = 0; j < 8; j++) {
+            n[i].fluctuations[j] = NEWS_FLUCTUATIONS[rand_i[i]][j]; //save news fluctuations
+        }
+    }
+
+    return n;
+}
+
+int extract_instr(char *str) {
+    char firstWord[10];
+
+    int i = 0;
+    while (str[i] != ' ' && str[i] != '\n') {
+        firstWord[i] = str[i];
+        i++;
+    }
+    firstWord[i] = 0;
+
+    if(strcmp(firstWord, "long") == 0){
+        if(isContainDollarSign(str))
+            return 1;
+        else
+            return 2;
+    }
+    else if(strcmp(firstWord, "short") == 0){
+        if(isContainDollarSign(str))
+            return 3;
+        else
+            return 4;
+    }
+    else if(strcmp(firstWord, "info") == 0){
+        return 5;
+    }
+    else if(strcmp(firstWord, "fake") == 0){
+        return 6;
+    }
+    else if(strcmp(firstWord, "loan") == 0){
+        return 7;
+    }
+    else if(strcmp(firstWord, "finish") == 0){
+        return 8;
+    }
+
+    return -1;
+}
+
+int isContainDollarSign(char *str) {
+    while (*str) {
+        if (*str == '$'){
+            return 1;
+        }
+        str++;
+    }
+
+    return 0;
+}
+
+int isAllFin(){
+    int cnt=0;
+    for(int i = 0; i < MAX_PLAYERS; i++)
+        if(players[i].connfd != -1 && players[i].isFin == 0)
+            return 0;
+    return 1;
 }
