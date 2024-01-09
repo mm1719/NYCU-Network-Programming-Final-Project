@@ -12,8 +12,9 @@ typedef struct {
     int character;
     int points;
     int bought_amounts[8]; // +,- : buy,sell
-    int loan_dollars;
+    int loan_expense;
     int isFin; //bool
+    int isDoneFake; //bool
     int isSetFake; //bool
     int isAchieved; //bool
 } Player;
@@ -50,10 +51,11 @@ const float NEWS_FLUCTUATIONS[][200] = { //TBD
     {0.0, 0.0, 0.3, 0.0, -0.2, 0.0, 0.0, 0.0},
     {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0}
 };
-const char ITEM_NAMES[8] = {"麥當勞股票", "鑽石"}; //TBD
+const char ITEM_NAMES[8] = {"股票1", "股票2","鑽石"}; //TBD
 const int ITEM_INIT_PRICE[8] = {1000, 10000}; //TBD
 const int OP_INFO_PRICE = 200000; //TBD
 const int OP_FAKE_PRICE = 500000; //TBD
+const int LOAN_INTEREST = 20; //TBD
 
 //Global Variables
 int listenfd, maxfd;
@@ -61,8 +63,8 @@ fd_set allset;
 Player players[MAX_PLAYERS]; //for saving active players' info
 int active_players;
 int current_round = 1;
-int flag1, flag2, flag3, flag4, flag5; //for leaving infinite loop
-int item_prices[8]; 
+News news_rounds[5][3], news_rounds_fake[5][3];
+int item_prices_rounds[5][8];
 
 //Functions
 void handle_new();
@@ -94,7 +96,7 @@ int main(){
     	handle_new(); //wait for players
 
     //Round 1 - prepare phase
-    News *news_round1 = get_3_random_news();
+    News news_rounds[0] = get_3_random_news();
 
     for(int i = 0; i < MAX_PLAYERS; i++){
         if(players[i].connfd != -1){
@@ -107,10 +109,14 @@ int main(){
 
             char buffer4[MAXLINE];
             sprintf(buffer4, "MARKET NEWS:\nNEWS 1: %s\nNEWS 2: %s\nNEWS 3: %s\n\n",
-                    news_round1[0].news_content, news_round1[1].news_content, news_round1[2].news_content);
+                    news_rounds[0].news_content, news_rounds[1].news_content, news_rounds[2].news_content);
             Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
+    }
+
+    for(int i = 0; i < 8; i++){
+        item_prices_rounds[0][i] = ITEM_INIT_PRICE[i];
     }
 
     //Round 1 - player phase
@@ -125,16 +131,20 @@ int main(){
     //Round 1 - closing phase
 
     //Round 2
-    News *news_round2 = get_3_random_news();
+    current_round = 2;
+    News news_rounds[1] = get_3_random_news();
 
     //Round 3
-    News *news_round3 = get_3_random_news();
+    current_round = 3;
+    News news_rounds[2] = get_3_random_news();
 
     //Round 4
-    News *news_round4 = get_3_random_news();
+    current_round = 4;
+    News news_rounds[3] = get_3_random_news();
 
     //Round 5
-    News *news_round5 = get_3_random_news();
+    current_round = 5;
+    News news_rounds[3] = get_3_random_news();
 
     //After game
 
@@ -161,9 +171,10 @@ void handle_new(){
             players[i].connfd = connfd;
             strncpy(players[i].name, buffer1, strlen(buffer1));
             //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr)));
-            players[i].points = 1000000; 
-            players[i].loan_dollars = 0;
+            players[i].points = 1000000;
+            players[i].loan_expense = 0;
             players[i].isAllFin = 0;
+            players[i].isDoneFake = 0;
             players[i].isSetFake = 0;
             players[i].isAchieved = 0;
 
@@ -221,47 +232,176 @@ void handle_in_round_msg(int player_i){
 	else {
 		int instr = extract_instr(buffer3);
 
-        char not_enough[MAXLINE];
+        char op_fail[MAXLINE];
+        char op_done[MAXLINE];
         switch (instr){
             case 1: //long with $dollar
+                int long_dollar_target, long_dollar_buy;
+                sscanf(buffer3, "%*s %d $%d\n", &long_dollar_target, &long_dollar_buy);
+                long_dollar_target--;
+
+                if(long_dollar_buy > players[player_i].points){
+                    sprintf(op_fail, "(insufficient points.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else{
+                    int long_dollar_bought_amount = long_dollar_buy / item_prices_rounds[current_round - 1][long_dollar_target];
+                    int long_dollar_cost = item_prices_rounds[current_round - 1][long_dollar_target] * long_dollar_bought_amount;
+                    players[player_i].points -= long_dollar_cost;
+                    players[player_i].bought_amounts[long_dollar_target] += long_dollar_bought_amount;
+
+                    sprintf(op_done, "(successfully long %d amounts of %s, costing %d points.)\n", 
+                            long_dollar_bought_amount, ITEM_NAMES[long_dollar_target], long_dollar_cost);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
+                }
+
+                if(players[player_i].character == 1 && long_dollar_target != 0 && long_dollar_target != 1)
+                    players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
+                if(players[player_i].character == 2)
+                    players[player_i].isAchieved = -1; //achievement failed - air force general goes long
                 break;
             
             case 2: //long with amount
+                int long_amount_target, long_amount_bought_amount;
+                sscanf(buffer3, "%*s %d %d\n", &long_amount_target, &long_amount_bought_amount);
+                long_amount_target--;
+
+                int long_amount_cost = item_prices_rounds[current_round - 1][long_amount_target] * long_amount_bought_amount;
+                if(long_amount_cost > players[player_i].points){
+                    sprintf(op_fail, "(insufficient points, %d points required.)\n", long_amount_cost);
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else{
+                    players[player_i].points -= long_amount_cost;
+                    players[player_i].bought_amounts[long_amount_target] += long_amount_bought_amount;
+                    
+                    sprintf(op_done, "(successfully long %d amounts of %s, costing %d points.)\n", 
+                            long_amount_bought_amount, ITEM_NAMES[long_amount_target], long_amount_cost);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
+                }
+                
+                if(players[player_i].character == 1 && long_amount_target != 0 && long_amount_target != 1)
+                    players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
+                if(players[player_i].character == 2)
+                    players[player_i].isAchieved = -1; //achievement failed - air force general goes long
                 break;
             
             case 3: //short with $dollar
+                int short_dollar_target, short_dollar_buy;
+                sscanf(buffer3, "%*s %d $%d\n", &short_dollar_target, &short_dollar_buy);
+                short_dollar_target--;
+
+                if(short_dollar_buy > players[player_i].points){
+                    sprintf(op_fail, "(insufficient points.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else{
+                    int short_dollar_bought_amount = short_dollar_buy / item_prices_rounds[current_round - 1][short_dollar_target];
+                    int short_dollar_cost = item_prices_rounds[current_round - 1][short_dollar_target] * short_dollar_bought_amount;
+                    players[player_i].points -= short_dollar_cost;
+                    players[player_i].bought_amounts[short_dollar_target] -= short_dollar_bought_amount;
+
+                    
+                    sprintf(op_done, "(successfully short %d amounts of %s, costing %d points.)\n", 
+                            short_dollar_bought_amount, ITEM_NAMES[short_dollar_target], short_dollar_cost);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
+                }
+                
+                if(players[player_i].character == 1 && short_dollar_target != 0 && short_dollar_target != 1)
+                    players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
                 break;
             
             case 4: //short with amount
+                int short_amount_target, short_amount_bought_amount;
+                sscanf(buffer3, "%*s %d %d\n", &short_amount_target, &short_amount_bought_amount);
+                short_amount_target--;
+
+                int short_amount_cost = item_prices_rounds[current_round - 1][short_amount_target] * short_amount_bought_amount;
+                if(short_amount_cost > players[player_i].points){
+                    sprintf(op_fail, "(insufficient points, %d points required.)\n", short_amount_cost);
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else{
+                    players[player_i].points -= short_amount_cost;
+                    players[player_i].bought_amounts[short_amount_target] += short_amount_bought_amount;
+
+                    sprintf(op_done, "(successfully short %d amounts of %s, costing %d points.)\n", 
+                            short_amount_bought_amount, ITEM_NAMES[short_amount_target], short_amount_cost);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
+                }
+                
+                if(players[player_i].character == 1 && short_amount_target != 0 && short_amount_target != 1)
+                    players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
                 break;
             
             case 5: //info
                 if(players[player_i].points < OP_INFO_PRICE){
-                    sprintf(not_enough, "(info operation requires %d points, you only have %d points.)\n", OP_INFO_PRICE, players[player_i].points);
-                    Writen(players[player_i].connfd, not_enough, strlen(not_enough));
+                    sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
+                            OP_INFO_PRICE, players[player_i].points);
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
                 }
                 else{
                     players[player_i].points -= OP_INFO_PRICE;
-                    for (int i = 0; i < MAX_USERS; i++)
-                        if (i != player_i && players[i].connfd != -1)
-                            players[i].isSetFake = 1;
+
+                    int info_i;
+                    sscanf(buffer3, "%*s %d", &info_i);
+
+                    sprintf(op_done, "(details for NEWS %d: %s)\n", info_i, news_rounds[current_round][info_i - 1].details_content);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
                 }
                 break;
             
             case 6: //fake
                 if(players[player_i].points < OP_FAKE_PRICE){
-                    sprintf(not_enough, "(fake operation requires %d points, you only have %d points.)\n", OP_FAKE_PRICE, players[player_i].points);
-                    Writen(players[player_i].connfd, not_enough, strlen(not_enough));
+                    sprintf(op_fail, "(fake operation requires %d points, you only have %d points.)\n", 
+                            OP_FAKE_PRICE, players[player_i].points);
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else if(current_round == 5){
+                    sprintf(op_fail, "(you cannot do fake operation in the final round.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else if(players[player_i].isDoneFake){
+                    sprintf(op_fail, "(nice try, but you already faked your opponent's news this round, you nasty little weasel.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
                 }
                 else{
                     players[player_i].points -= OP_FAKE_PRICE;
+                    players[player_i].isDoneFake = 1;
                     for (int i = 0; i < MAX_USERS; i++)
                         if (i != player_i && players[i].connfd != -1)
                             players[i].isSetFake = 1;
+
+                    sprintf(op_done, "(a fake news will be deployed in your opponent's market news next round.)\n");
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
                 }
                 break;
             
             case 7: //loan
+                int need;
+                sscanf(buffer3, "%*s %d\n", &need);
+
+                if(players[player_i].character == 1){
+                    sprintf(op_fail, "(no loan for students.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else if(players[player_i].loan_expense){
+                    sprintf(op_fail, "(nice try, but the bank already credited to you this round, you cheeky doughnut.)\n");
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else if(need > players[player_i].points){
+                    sprintf(op_fail, "(your loan limit is $%d, which is your current points.)\n", players[player_i].points);
+                    Writen(players[player_i].connfd, op_fail, strlen(op_fail));
+                }
+                else{
+                    players[player_i].points += need;
+                    players[player_i].loan_expense = need * (100 + LOAN_INTEREST) / 100;
+
+                    sprintf(op_done, "(the bank credited $%d to you. you will need to pay $%d in the end of this round.)\n", 
+                            need, players[player_i].loan_expense);
+                    Writen(players[player_i].connfd, op_done, strlen(op_done));
+                }
+                
                 break;
             
             case 8: //finish
@@ -271,6 +411,9 @@ void handle_in_round_msg(int player_i){
             // case -1: //invalid
             //     break;
         }
+
+        memset(op_fail, 0, sizeof(op_fail));
+        memset(op_done, 0, sizeof(op_done));
     }
 
     memset(buffer3, 0, sizeof(buffer3));
