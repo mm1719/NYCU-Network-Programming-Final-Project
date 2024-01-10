@@ -143,7 +143,8 @@ News* get_3_random_news();
 //News* pick_1_fake_news(News*);
 int extract_instr(char*);
 int isContainDollarSign(char*);
-void calculateItemFluctuations(int);
+void setRandomNews(int);
+void setPriceAndFluctuations(int);
 void sendPointsAndNews(int);
 void sendPricesInfo(int);
 void playerPhase();
@@ -171,23 +172,21 @@ int main(){
 
     //Round 1 - prepare phase
     
-    newNews = get_3_random_news(); //news for this round
-    for (int i = 0; i < 3; i++)
-        news_rounds[0][i] = newNews[i];
+    setRandomNews(current_round); //set random news for round 1
 
-    calculateItemFluctuations(0); //calculate item fluctuations for round 1
+    setPriceAndFluctuations(current_round); //calculate item fluctuations for round 1
     /*for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
             for(int k = 0; k < 8; k++)
                 item_fluctuations_rounds[0][i] += news_rounds[0][j].fluctuations[k]; //fluctuations for closing phase
     */
    
-    for(int i = 0; i < 8; i++){
+    /*for(int i = 0; i < 8; i++){
         item_prices_rounds[0][i] = ITEM_INIT_PRICE[i]; //prices for this round
-        item_prices_rounds[1][i] = item_prices_rounds[0][i] * item_fluctuations_rounds[0][i]; //prices for next round
-    }
+        item_prices_rounds[1][i] = item_prices_rounds[0][i] * (1 + item_fluctuations_rounds[0][i]); //prices for next round
+    }*/
 
-    sendPointsAndNews(0); //send points and news in round 1
+    sendPointsAndNews(current_round); //send points and news in round 1
     /*
     for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news
         if(players[i].connfd != -1){
@@ -207,7 +206,7 @@ int main(){
     }
     */
     
-    sendPricesInfo(0); //send round 1 info
+    sendPricesInfo(current_round); //send round 1 info
     /*
     for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
@@ -236,7 +235,7 @@ int main(){
     }*/
     
     //Round 1 - closing phase
-    closingPhase(0); // settle the account in round 1  
+    closingPhase(current_round); // settle the account in round 1  
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
     
@@ -312,37 +311,57 @@ int main(){
     //Round 2
     current_round = 2;
 
-    newNews = get_3_random_news();
-    for (int i = 0; i < 3; i++)
-        news_rounds[1][i] = newNews[i];
-
+    setRandomNews(current_round); //set random news for round 2
+    setPriceAndFluctuations(current_round); //calculate item fluctuations for round 2
+    sendPointsAndNews(current_round); //send points and news in round 2
+    sendPricesInfo(current_round); //send round 2 info
+    playerPhase(); //wait for players to finish their operations in round 2
+    closingPhase(current_round); // settle the account in round 2 
+    if (bankrupt_count >= MAX_PLAYERS - 1) 
+        goto end_game;
+        
         //copy from Round 1: 設定下回合的item_prices_rounds&item_fluctuations_rounds, 送出新聞, player phase, ending phase
         //TODO: 送出假新聞if(players[i].isSetFake)
 
     //Round 3
     current_round = 3;
     
-    newNews = get_3_random_news();
-    for (int i = 0; i < 3; i++)
-        news_rounds[2][i] = newNews[i];
+    setRandomNews(current_round); //set random news for round 3
+    setPriceAndFluctuations(current_round); //calculate item fluctuations for round 3
+    sendPointsAndNews(current_round); //send points and news in round 3
+    sendPricesInfo(current_round); //send round 3 info
+    playerPhase(); //wait for players to finish their operations in round 3
+    closingPhase(current_round); // settle the account in round 3
+    if (bankrupt_count >= MAX_PLAYERS - 1) 
+        goto end_game;
         //TODO: 
         //copy round 2
 
     //Round 4
     current_round = 4;
     
-    newNews = get_3_random_news();
-    for (int i = 0; i < 3; i++)
-        news_rounds[3][i] = newNews[i];
+    setRandomNews(current_round); //set random news for round 4
+    setPriceAndFluctuations(current_round); //calculate item fluctuations for round 4
+    sendPointsAndNews(current_round); //send points and news in round 4
+    sendPricesInfo(current_round); //send round 4 info
+    playerPhase(); //wait for players to finish their operations in round 4
+    closingPhase(current_round); // settle the account in round 4
+    if (bankrupt_count >= MAX_PLAYERS - 1) 
+        goto end_game;
         //TODO: 
         //copy round 2
 
     //Round 5
     current_round = 5;
     
-    newNews = get_3_random_news();
-    for (int i = 0; i < 3; i++)
-        news_rounds[4][i] = newNews[i];
+    setRandomNews(current_round); //set random news for round 5
+    setPriceAndFluctuations(current_round); //calculate item fluctuations for round 5
+    sendPointsAndNews(current_round); //send points and news in round 5
+    sendPricesInfo(current_round); //send round 5 info
+    playerPhase(); //wait for players to finish their operations in round 5
+    closingPhase(current_round); // settle the account in round 5 
+    if (bankrupt_count >= MAX_PLAYERS - 1) 
+        goto end_game;
     
         //copy round 2
         //TODO: character3技能(虧損轉移)
@@ -380,6 +399,8 @@ void handle_new(){
             players[i].isDoneFake = 0;
             players[i].isSetFake = 0;
             players[i].isAchieved = 0;
+            memset(players[i].bought_amounts, 0, sizeof(players[i].bought_amounts));
+
 
             Writen(players[i].connfd, WELCOME_AND_CHARACTERS, strlen(WELCOME_AND_CHARACTERS)); //send character list
 
@@ -726,27 +747,46 @@ int isAllFin(){
     return 1;
 }
 
+void setRandomNews(int round) {
+    newNews = get_3_random_news(); //news for this round
+    for (int i = 0; i < 3; i++)
+        news_rounds[round][i] = newNews[round];
+}
 
-void calculateItemFluctuations(int round) {
+void setPriceAndFluctuations(int round) {
     for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
             for(int k = 0; k < 8; k++)
-                item_fluctuations_rounds[round][i] += news_rounds[round][j].fluctuations[k];
+                item_fluctuations_rounds[round][i] = news_rounds[round][j].fluctuations[k];
+
+    if (round == 0)
+        for(int i = 0; i < 8; i++)
+            item_prices_rounds[0][i] = ITEM_INIT_PRICE[i]; //prices for this round
+    
+    for(int i = 0; i < 8; i++)
+        item_prices_rounds[round + 1][i] = item_prices_rounds[round][i] * (1 + item_fluctuations_rounds[round][i]); //prices for next round
 }
 
-void sendPointsAndNews(int round) { //TODO:
-    for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news
+void sendPointsAndNews(int round) {
+    for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news     
         if(players[i].connfd != -1){
-            if(players[i].character == 1){
-                players[i].points += 1000000; //init points - 交大富二代
-                Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35); //send round and points info
+            if(round == 0) {
+                if(players[i].character == 1){
+                    players[i].points += 1000000; //init points - 交大富二代
+                    Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35); //send round and points info
+                }
+                else
+                    Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35); //send round and points info    
             }
-            else
-                Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35); //send round and points info
+            else {
+                char buffer12[MAXLINE];
+                sprintf(buffer12, "Round %d\nYou have %d points!\n", round + 1, players[i].points);
+                Writen(players[i].connfd, buffer12, strlen(buffer12)); //send round and points info
+            }
 
             char buffer4[MAXLINE];
             sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
-                    news_rounds[round]->news_content, news_rounds[round + 1]->news_content, news_rounds[round + 2]->news_content);
+                    news_rounds[0]->news_content, news_rounds[1]->news_content, news_rounds[2]->news_content);
             Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
@@ -791,7 +831,7 @@ void closingPhase(int round) {
             for(int j = 0; j < 8; j++){
                 if(item_fluctuations_rounds[round][j]){
                     char buffer7[MAXLINE];
-                    sprintf(buffer7, "\t%s: \t%f\n", ITEM_NAMES[j], item_fluctuations_rounds[round][j]); //TODO:
+                    sprintf(buffer7, "\t%s: \t+%f%%\n", ITEM_NAMES[j], 100 * item_fluctuations_rounds[round][j]);
                     Writen(players[i].connfd, buffer7, strlen(buffer7)); //send item fluctuations
                     memset(buffer7, 0, sizeof(buffer7)); //clear buffer7
                 }
@@ -799,7 +839,7 @@ void closingPhase(int round) {
 
             int earned = 0;
             for(int j = 0; j < 8; j++){
-                earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j]; // TODO:
+                earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j];
             }
             players[i].points += earned;
 
