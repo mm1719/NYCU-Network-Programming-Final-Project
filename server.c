@@ -45,7 +45,7 @@ const char WELCOME_AND_CHARACTERS[600] =
 "\t挑戰: 若全程做空, 獲得1百萬積分\n" //to do: 獲得1百萬積分
 "no.3: 虧損鬼才\n"
 "\t能力: 最終結算時, 將2倍的虧損金額加至對手積分\n" //unimplemented
-"\t挑戰: 若全程虧損且每次虧損金額不小於於現有積分之10%%, 獲得3百萬積分\n\n" //unimplemented
+"\t挑戰: 若全程虧損且每次虧損金額不小於現有積分之10%%, 獲得3百萬積分\n\n" //unimplemented
 "請輸入整數(0 ~ 3)選擇角色:\n";
 
 //const int TOTAL_NEWS = 30; //replaced with define
@@ -132,8 +132,8 @@ int item_prices_rounds[5][8];
 int item_fluctuations_rounds[5][8];
 int bankrupt_count = 0;
 News* newNews;
-News* fakeNews;
-
+//News* fakeNews;
+int prevPoints[2];
 
 //Functions
 void handle_new();
@@ -235,8 +235,20 @@ int main(){
         }
     }*/
     
+    if (players[0].isSetFake) { // 送出假新聞if(players[0].isSetFake)
+        setFakeResult(current_round);
+        players[0].isDoneFake = 0;
+        players[0].isSetFake = 0;
+    }
+    if (players[1].isSetFake) { // 送出假新聞if(players[1].isSetFake)
+        setFakeResult(current_round);
+        players[1].isDoneFake = 0;
+        players[1].isSetFake = 0;
+    }   
+
     //Round 1 - closing phase
     closingPhase(current_round); // settle the account in round 1  
+    checkCharacter3(); //check if character3 fails
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
     
@@ -250,7 +262,7 @@ int main(){
             for(int j = 0; j < 8; j++){
                 if(item_fluctuations_rounds[0][j]){
                     char buffer7[MAXLINE];
-                    sprintf(buffer7, "\t%s: \t%f\n", ITEM_NAMES[j], item_fluctuations_rounds[0][j]); //TODO:
+                    sprintf(buffer7, "\t%s: \t%f\n", ITEM_NAMES[j], item_fluctuations_rounds[0][j]);
                     Writen(players[i].connfd, buffer7, strlen(buffer7)); //send item fluctuations
                     memset(buffer7, 0, sizeof(buffer7)); //clear buffer7
                 }
@@ -309,10 +321,10 @@ int main(){
         }
     }*/
 
-    
     //Round 2
     current_round = 2;
-
+    prevPoints[0] = player[0].points;
+    prevPoints[1] = player[1].points;
     setRandomNews(current_round); //set random news for round 2
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 2
     sendPointsAndNews(current_round); //send points and news in round 2
@@ -329,13 +341,15 @@ int main(){
         players[1].isSetFake = 0;
     }
     closingPhase(current_round); // settle the account in round 2 
+    checkCharacter3(); //check if character3 fails
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
 
 
     //Round 3
     current_round = 3;
-    
+    prevPoints[0] = player[0].points;
+    prevPoints[1] = player[1].points;
     setRandomNews(current_round); //set random news for round 3
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 3
     sendPointsAndNews(current_round); //send points and news in round 3
@@ -352,13 +366,15 @@ int main(){
         players[1].isSetFake = 0;
     }    
     closingPhase(current_round); // settle the account in round 3
+    checkCharacter3(); //check if character3 fails
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
 
 
     //Round 4
     current_round = 4;
-    
+    prevPoints[0] = player[0].points;
+    prevPoints[1] = player[1].points;
     setRandomNews(current_round); //set random news for round 4
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 4
     sendPointsAndNews(current_round); //send points and news in round 4
@@ -375,23 +391,36 @@ int main(){
         players[1].isSetFake = 0;
     }    
     closingPhase(current_round); // settle the account in round 4
+    checkCharacter3(); //check if character3 fails
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
 
 
     //Round 5
     current_round = 5;
-    
+    prevPoints[0] = player[0].points;
+    prevPoints[1] = player[1].points;
     setRandomNews(current_round); //set random news for round 5
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 5
     sendPointsAndNews(current_round); //send points and news in round 5
     sendPricesInfo(current_round); //send round 5 info
     playerPhase(); //wait for players to finish their operations in round 5
     closingPhase(current_round); // settle the account in round 5 
+    checkCharacter3(); //check if character3 fails
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
 
-        //TODO: character3技能(虧損轉移)
+    //TODO: character3技能(虧損轉移)
+    int loss[2];
+    for (int i = 0, j = 1; i < 2; i++, j--) {
+        if (player[i].character == 3)
+            loss[i] = (1000000 - player[i].points) * 2;
+    }
+    for (int i = 0, j = 1; i < 2; i++, j--) {
+        if (player[i].character == 3)
+            if (loss[i] > 0)
+                player[j].points -= loss[i];
+    }
 
     //After game
         //TODO: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
@@ -923,5 +952,16 @@ void setFakeResult(int round) {
     int random = rand() % 3;
     for (int i = 0; i < 8; i++) {
         news_round[round][random].fluctuations[i] = -news_round[round][random].fluctuations[i];
+    }
+}
+
+void checkCharacter3() {
+    for (int i = 0; i < 2; i++) {
+        if (player[i].character == 3) {
+            if (player[i].isAchieved == -1)
+                continue;
+            if (prevPoints[i] * 0.9 <= player[i].points)
+                player[i].isAchieved = -1;
+        }
     }
 }
