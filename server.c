@@ -154,9 +154,9 @@ const int LOAN_INTEREST = 20; // 借貸利率
 
 //Global Variables
 int listenfd, maxfd;
-fd_set allset;
+fd_set allset, rset;
 Player players[MAX_PLAYERS]; //for saving active players' info
-int active_players;
+int active_players = 0;
 int current_round = 1;
 News news_rounds[5][3];
 float item_fluctuation_rounds_fake[5][8];
@@ -167,7 +167,7 @@ int bankrupt_count = 0;
 int prevPoints[2];
 
 //Functions
-void handle_new();
+void wait_players();
 void handle_in_round_msg(int);
 int isAllFin();
 News* get_3_random_news();
@@ -199,10 +199,12 @@ int main(){
     for (int i = 0; i < MAX_PLAYERS; i++) 
         players[i].connfd = -1; //no active player in the beginning
 
+    maxfd = listenfd;
+    FD_ZERO(&allset);
+	FD_SET(listenfd, &allset);
     //Before game
-    for(int i = 0; i < MAX_PLAYERS; i++)
-    	handle_new(); //wait for players
-
+    wait_players(); //wait for players
+    fprintf(stdout, "Game started.\n");
     //Round 1 - prepare phase
     
     setRandomNews(current_round); //set random news for round 1
@@ -473,48 +475,83 @@ int main(){
 	return 0;
 }
 
-void handle_new(){
-	if(active_players>=MAX_PLAYERS)
-		return;
-	
-    int connfd;
-    struct sockaddr_in cliaddr;
-    socklen_t clilen = sizeof(cliaddr);
-	connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &clilen); //accept
-    active_players++; //add new active player
-    
-    char buffer1[MAXLINE];
-    int tmp = Read(connfd, buffer1, MAXLINE); //read name
-    buffer1[tmp] = 0; //string ending
+void wait_players(){
+    int flag0 = 0, flag1 = 0;
+    for (;;) {
+        fprintf(stdout, "active_players: %d\n", active_players);
+        
+        if(active_players >= MAX_PLAYERS && flag0 && flag1){
+            fprintf(stdout, "game start!\n");
+            break;
+        }
 
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (players[i].connfd == -1) { //find an empty players slot
-            //init player info
-            players[i].connfd = connfd;
-            strncpy(players[i].name, buffer1, strlen(buffer1));
-            //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr)));
-            players[i].points = 1000000;
-            players[i].loan_expense = 0;
-            players[i].isFin = 0;
-            players[i].isDoneFake = 0;
-            players[i].isSetFake = 0;
-            players[i].isAchieved = 0;
-            memset(players[i].bought_amounts, 0, sizeof(players[i].bought_amounts));
+        rset = allset;
+        int nready = select(maxfd + 1, &rset, NULL, NULL, NULL);
 
+        if (FD_ISSET(listenfd, &rset)) {
+            if (active_players < 2) {
+                int playerID = active_players;
+                int connfd;
+                struct sockaddr_in cliaddr;
+                socklen_t clilen = sizeof(cliaddr);
+                connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &clilen); //accept
+                active_players++; //add new active player
+                
+                char buffer1[MAXLINE];
+                ssize_t tmp = Read(connfd, buffer1, MAXLINE); //read name
+                buffer1[tmp] = 0; //string ending
 
-            Writen(players[i].connfd, WELCOME_AND_CHARACTERS, strlen(WELCOME_AND_CHARACTERS)); //send character list
+                if (players[playerID].connfd == -1) { //find an empty players slot
+                    //init player info
+                    players[playerID].connfd = connfd;
+                    strncpy(players[playerID].name, buffer1, strlen(buffer1));
+                    //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr)));
+                    players[playerID].points = 1000000;
+                    players[playerID].loan_expense = 0;
+                    players[playerID].isFin = 0;
+                    players[playerID].isDoneFake = 0;
+                    players[playerID].isSetFake = 0;
+                    players[playerID].isAchieved = 0;
+                    memset(players[playerID].bought_amounts, 0, sizeof(players[playerID].bought_amounts));
 
-            char buffer2[MAXLINE];
-            int tmp2 = Read(connfd, buffer2, sizeof(buffer2)); //read character
-            players[i].character = buffer2[0] - '0'; //save character
+                    FD_SET(connfd, &allset); //add this connfd to allset
+                    maxfd = max(maxfd, connfd); //update maxfd
 
-            memset(buffer1, 0, sizeof(buffer1)); //clear buffer1
-            memset(buffer2, 0, sizeof(buffer2)); //clear buffer2
+                    Writen(players[playerID].connfd, WELCOME_AND_CHARACTERS, strlen(WELCOME_AND_CHARACTERS)); //send character list
+                    
+                    memset(buffer1, 0, sizeof(buffer1)); //clear buffer1
 
-            FD_SET(connfd, &allset); //add this connfd to allset
-            maxfd = max(maxfd, connfd); //update maxfd
+                    /*
+                    char buffer2[MAXLINE];
+                    int tmp2 = Read(connfd, buffer2, sizeof(buffer2)); //read character
+                    fprintf(stdout, "%s\n", buffer2);
+                    players[i].character = buffer2[0] - '0'; //save character
 
-            return;
+                    memset(buffer1, 0, sizeof(buffer1)); //clear buffer1
+                    memset(buffer2, 0, sizeof(buffer2)); //clear buffer2
+
+                    FD_SET(connfd, &allset); //add this connfd to allset
+                    maxfd = max(maxfd, connfd); //update maxfd
+
+                    return;
+                    */
+                }
+            }
+        }
+
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            if (players[i].connfd != -1 && FD_ISSET(players[i].connfd, &rset)) {
+                char buffer2[MAXLINE];
+                ssize_t tmp2 = Read(players[i].connfd, buffer2, sizeof(buffer2));
+                buffer2[tmp2] = 0;
+                //fprintf(stdout, "%s\n", buffer2);
+                players[i].character = buffer2[0] - '0';
+                memset(buffer2, 0, sizeof(buffer2)); //clear buffer2
+                if (i == 0)
+                    flag0 = 1;
+                else if (i == 1)
+                    flag1 = 1;
+            }
         }
     }
 }
@@ -665,7 +702,7 @@ void handle_in_round_msg(int player_i){
                     players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
                 break;
             
-            case 5: //info  //TODO:
+            case 5: //info
                     ; 
                 if(players[player_i].points < OP_INFO_PRICE){
                     sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
