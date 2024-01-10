@@ -53,7 +53,7 @@ const char NEWS_CONTENTS[TOTAL_NEWS][200] = {
     "麥當勞近期將在全球範圍開立更多分店, 市場關注其擴張計畫是否能提振業績",
     "長榮航空股票受油價波動影響, 投資者紛紛探討公司應對油價的策略",
     "近期雞肉市場穩健, 雞價有穩定下降的趨勢",
-    "長榮航空宣布擴大國際線路",
+    "長榮航空宣布擴大國際航線",
     "近期GTA6即將開發完成, 近期將在PS5及PC上發售",
     "近期原神啟動小胖子引發熱議",
     "近期受到全球經濟不確定性的影響, 投資者紛紛轉向避險資產",
@@ -170,7 +170,7 @@ int prevPoints[2];
 void wait_players();
 void handle_in_round_msg(int);
 int isAllFin();
-News* get_3_random_news();
+void get_3_random_news(News*);
 //News* pick_1_fake_news(News*);
 int extract_instr(char*);
 int isContainDollarSign(char*);
@@ -790,7 +790,7 @@ void handle_in_round_msg(int player_i){
     memset(buffer3, 0, sizeof(buffer3));
 }
 
-News* get_3_random_news(){
+void get_3_random_news(News* n) {
     srand(time(0));
 
     int rand_i[3]; // for randomly picking news
@@ -798,15 +798,12 @@ News* get_3_random_news(){
         for(int i = 0; i < 3; i++)
             rand_i[i] = rand() % TOTAL_NEWS;
 
-    News n[3]; //market news to send
     for(int i = 0; i < 3; i++){
         strncpy(n[i].news_content, NEWS_CONTENTS[rand_i[i]], strlen(NEWS_CONTENTS[rand_i[i]])); //save news content
         for (int j = 0; j < 8; j++)
             n[i].fluctuations[j] = NEWS_FLUCTUATIONS[rand_i[i]][j]; //save news fluctuations
         strncpy(n[i].details_content, DETAILED_CONTENTS[rand_i[i]], strlen(DETAILED_CONTENTS[rand_i[i]])); //save detailed content
     }
-
-    return n;
 }
 
 /*News* pick_1_fake_news(News* news_in){
@@ -885,12 +882,20 @@ int isAllFin(){
 }
 
 void setRandomNews(int round) {
-    News* newNews = get_3_random_news(); //news for this round
-    for (int i = 0; i < 3; i++)
-        news_rounds[round][i] = newNews[round];
+    round--;
+    fprintf(stdout, "Random News for round %d:\n", round+1);
+    
+    News newNews[3];
+    get_3_random_news(newNews); // The array is filled by the function
+    fprintf(stdout, "%s\n", newNews[1].news_content);
+
+    for (int i = 0; i < 3; i++) {
+        news_rounds[round][i] = newNews[i];
+    }
 }
 
 void setPriceAndFluctuations(int round) {
+    round--;
     for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
             for(int k = 0; k < 8; k++)
@@ -905,6 +910,7 @@ void setPriceAndFluctuations(int round) {
 }
 
 void sendPointsAndNews(int round) {
+    round--;
     for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news     
         if(players[i].connfd != -1){
             if(round == 0) {
@@ -931,7 +937,8 @@ void sendPointsAndNews(int round) {
 }
 
 void sendPricesInfo(int round) {
-        for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
+    round--;
+    for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
             char buffer5[MAXLINE];
             sprintf(buffer5, "(1)%s:\t$%d\n(2)%s:\t$%d\n(3)%s:\t$%d\n(4)%s:\t$%d\n(5)%s:\t$%d\n(6)%s:\t$%d\n(7)%s:\t$%d\n(8)%s:\t$%d\n",
@@ -958,6 +965,7 @@ void playerPhase() {
 }
 
 void closingPhase(int round) {
+    round--;
     for(int i = 0; i < MAX_PLAYERS; i++){
         if (players[i].connfd != -1){
             char buffer6[MAXLINE];
@@ -1029,6 +1037,7 @@ void closingPhase(int round) {
 }
 
 void setFakeResult(int round) {
+    round--;
     srand(time(0));
     int random = rand() % 3;
     for (int i = 0; i < 8; i++) {
