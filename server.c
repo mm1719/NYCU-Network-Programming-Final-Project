@@ -942,11 +942,14 @@ void sendPricesInfo(int round) {
     for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
             char buffer5[MAXLINE];
-            sprintf(buffer5, "(1)%s:\t$%d\n(2)%s:\t$%d\n(3)%s:\t$%d\n(4)%s:\t$%d\n(5)%s:\t$%d\n(6)%s:\t$%d\n(7)%s:\t$%d\n(8)%s:\t$%d\n",
+            sprintf(buffer5, "(1)%s:\t\t$%d\n(2)%s:\t$%d\n(3)%s:\t\t$%d\n(4)%s:\t\t$%d\n(5)%s:\t\t$%d\n(6)%s:\t\t$%d\n(7)%s:\t\t$%d\n(8)%s:\t$%d\n",
                     ITEM_NAMES[0], item_prices_rounds[round][0], ITEM_NAMES[1], item_prices_rounds[round][1], 
                     ITEM_NAMES[2], item_prices_rounds[round][2], ITEM_NAMES[3], item_prices_rounds[round][3], 
                     ITEM_NAMES[4], item_prices_rounds[round][4], ITEM_NAMES[5], item_prices_rounds[round][5], 
                     ITEM_NAMES[6], item_prices_rounds[round][6], ITEM_NAMES[7], item_prices_rounds[round][7]);
+            
+            fprintf(stdout, "%s\n", buffer5);
+
             Writen(players[i].connfd, buffer5, strlen(buffer5)); //send item prices
             memset(buffer5, 0, sizeof(buffer5)); //clear buffer5
         }
