@@ -148,6 +148,7 @@ void setPriceAndFluctuations(int);
 void sendPointsAndNews(int);
 void sendPricesInfo(int);
 void playerPhase();
+void setFakeResult(int);
 void closingPhase(int);
 
 int main(){
@@ -307,6 +308,7 @@ int main(){
             }
         }
     }*/
+
     
     //Round 2
     current_round = 2;
@@ -316,12 +318,20 @@ int main(){
     sendPointsAndNews(current_round); //send points and news in round 2
     sendPricesInfo(current_round); //send round 2 info
     playerPhase(); //wait for players to finish their operations in round 2
+    if (players[0].isSetFake) { // 送出假新聞if(players[0].isSetFake)
+        setFakeResult(current_round);
+        players[0].isDoneFake = 0;
+        players[0].isSetFake = 0;
+    }
+    if (players[1].isSetFake) { // 送出假新聞if(players[1].isSetFake)
+        setFakeResult(current_round);
+        players[1].isDoneFake = 0;
+        players[1].isSetFake = 0;
+    }
     closingPhase(current_round); // settle the account in round 2 
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
-        
-        //copy from Round 1: 設定下回合的item_prices_rounds&item_fluctuations_rounds, 送出新聞, player phase, ending phase
-        //TODO: 送出假新聞if(players[i].isSetFake)
+
 
     //Round 3
     current_round = 3;
@@ -331,11 +341,20 @@ int main(){
     sendPointsAndNews(current_round); //send points and news in round 3
     sendPricesInfo(current_round); //send round 3 info
     playerPhase(); //wait for players to finish their operations in round 3
+    if (players[0].isSetFake) { // 送出假新聞if(players[0].isSetFake)
+        setFakeResult(current_round);
+        players[0].isDoneFake = 0;
+        players[0].isSetFake = 0;
+    }
+    if (players[1].isSetFake) { // 送出假新聞if(players[1].isSetFake)
+        setFakeResult(current_round);
+        players[1].isDoneFake = 0;
+        players[1].isSetFake = 0;
+    }    
     closingPhase(current_round); // settle the account in round 3
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
-        //TODO: 
-        //copy round 2
+
 
     //Round 4
     current_round = 4;
@@ -345,11 +364,20 @@ int main(){
     sendPointsAndNews(current_round); //send points and news in round 4
     sendPricesInfo(current_round); //send round 4 info
     playerPhase(); //wait for players to finish their operations in round 4
+    if (players[0].isSetFake) { // 送出假新聞if(players[0].isSetFake)
+        setFakeResult(current_round);
+        players[0].isDoneFake = 0;
+        players[0].isSetFake = 0;
+    }
+    if (players[1].isSetFake) { // 送出假新聞if(players[1].isSetFake)
+        setFakeResult(current_round);
+        players[1].isDoneFake = 0;
+        players[1].isSetFake = 0;
+    }    
     closingPhase(current_round); // settle the account in round 4
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
-        //TODO: 
-        //copy round 2
+
 
     //Round 5
     current_round = 5;
@@ -362,8 +390,7 @@ int main(){
     closingPhase(current_round); // settle the account in round 5 
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
-    
-        //copy round 2
+
         //TODO: character3技能(虧損轉移)
 
     //After game
@@ -888,5 +915,13 @@ void closingPhase(int round) {
                 }
             }
         }
+    }
+}
+
+void setFakeResult(int round) {
+    srand(time(0));
+    int random = rand() % 3;
+    for (int i = 0; i < 8; i++) {
+        news_round[round][random].fluctuations[i] = -news_round[round][random].fluctuations[i];
     }
 }
