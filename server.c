@@ -250,7 +250,7 @@ int main(){
 
     //After game
         //new things to do: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
-    end_game:   //有可能是破產才來到end_game
+    end_game:   //有可能是破產才來到end_game, at line 195
 
 	return 0;
 }
