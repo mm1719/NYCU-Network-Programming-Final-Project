@@ -4,6 +4,10 @@
 #include <string.h>
 #include <time.h>
 
+// use define instead of global constant for global range
+#define TOTAL_NEWS 30
+#define MAX_PLAYERS 2
+
 //Structures
 typedef struct {
     int connfd;
@@ -27,7 +31,7 @@ typedef struct{
 } News;
 
 //Constant Global Variables
-const int MAX_PLAYERS = 2;
+//const int MAX_PLAYERS = 2; //replaced with define
 const char WELCOME_AND_CHARACTERS[600] = 
 "Welcome! Choose your character:\n\n"
 "no.0: 老百姓\n"
@@ -43,20 +47,22 @@ const char WELCOME_AND_CHARACTERS[600] =
 "\t能力: 最終結算時, 將2倍的虧損金額加至對手積分\n" //unimplemented
 "\t挑戰: 若全程虧損且每次虧損金額不小於於現有積分之10%%, 獲得3百萬積分\n\n" //unimplemented
 "請輸入整數(0 ~ 3)選擇角色:\n";
-const int TOTAL_NEWS = 30; //TBD
-const char NEWS_CONTENTS[TOTAL_NEWS][200] = { //TBD
+
+//const int TOTAL_NEWS = 30; //replaced with define
+
+const char NEWS_CONTENTS[TOTAL_NEWS][200] = { //TODO:
     "AAA",
     "BBB"
 };
-const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = { //TBD
+const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = { //TODO:
     {0.0, 0.0, 0.3, 0.0, -0.2, 0.0, 0.0, 0.0},
     {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0}
 };
-const char ITEM_NAMES[8] = {"股票1", "股票2","鑽石"}; //TBD
-const int ITEM_INIT_PRICE[8] = {1000, 10000}; //TBD
-const int OP_INFO_PRICE = 200000; //TBD
-const int OP_FAKE_PRICE = 500000; //TBD
-const int LOAN_INTEREST = 20; //TBD
+const char* ITEM_NAMES[8] = {"股票1", "股票2","鑽石"}; // Adjust
+const int ITEM_INIT_PRICE[8] = {1000, 10000}; //TODO:
+const int OP_INFO_PRICE = 200000; //TODO:
+const int OP_FAKE_PRICE = 500000; //TODO:
+const int LOAN_INTEREST = 20; //TODO:
 
 //Global Variables
 int listenfd, maxfd;
@@ -64,17 +70,21 @@ fd_set allset;
 Player players[MAX_PLAYERS]; //for saving active players' info
 int active_players;
 int current_round = 1;
-News news_rounds[5][3], news_rounds_fake[5][3];
+News news_rounds[5][3];
+float item_fluctuation_rounds_fake[5][8];
 int item_prices_rounds[5][8];
 int item_fluctuations_rounds[5][8];
 int bankrupt_count;
+News* newNews;
+News* fakeNews;
+
 
 //Functions
 void handle_new();
 void handle_in_round_msg(int);
 int isAllFin();
 News* get_3_random_news();
-News* pick_1_fake_news(News*);
+//News* pick_1_fake_news(News*);
 int extract_instr(char*);
 int isContainDollarSign(char*);
 
@@ -99,7 +109,10 @@ int main(){
     	handle_new(); //wait for players
 
     //Round 1 - prepare phase
-    news_rounds[0] = get_3_random_news(); //news for this round
+    //news_rounds[0] = get_3_random_news(); //news for this round
+    newNews = get_3_random_news(); //news for this round
+    for (int i = 0; i < 3; i++)
+        news_rounds[0][i] = newNews[i];
 
     for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
@@ -122,7 +135,7 @@ int main(){
 
             char buffer4[MAXLINE];
             sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
-                    news_rounds[0].news_content, news_rounds[1].news_content, news_rounds[2].news_content);
+                    news_rounds[0]->news_content, news_rounds[1]->news_content, news_rounds[2]->news_content);
             Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
@@ -224,27 +237,39 @@ int main(){
     
     //Round 2
     current_round = 2;
-    news_rounds[1] = get_3_random_news();
-    news_rounds_fake[1] = pick_1_fake_news(news_rounds[1]);
+
+    newNews = get_3_random_news();
+    for (int i = 0; i < 3; i++)
+        news_rounds[1][i] = newNews[i];
+
         //copy from Round 1: 設定下回合的item_prices_rounds&item_fluctuations_rounds, 送出新聞, player phase, ending phase
         //new things to do: 送出假新聞if(players[i].isSetFake)
 
     //Round 3
     current_round = 3;
-    news_rounds[2] = get_3_random_news();
-    news_rounds_fake[2] = pick_1_fake_news(news_rounds[2]);
+    
+    newNews = get_3_random_news();
+    for (int i = 0; i < 3; i++)
+        news_rounds[2][i] = newNews[i];
+        
         //copy round 2
 
     //Round 4
     current_round = 4;
-    news_rounds[3] = get_3_random_news();
-    news_rounds_fake[3] = pick_1_fake_news(news_rounds[3]);
+    
+    newNews = get_3_random_news();
+    for (int i = 0; i < 3; i++)
+        news_rounds[3][i] = newNews[i];
+        
         //copy round 2
 
     //Round 5
     current_round = 5;
-    news_rounds[4] = get_3_random_news();
-    news_rounds_fake[4] = pick_1_fake_news(news_rounds[4]);
+    
+    newNews = get_3_random_news();
+    for (int i = 0; i < 3; i++)
+        news_rounds[4][i] = newNews[i];
+    
         //copy round 2
         //new things to do: character3技能(虧損轉移)
 
@@ -277,7 +302,7 @@ void handle_new(){
             //strncpy(players[i].ip, inet_ntoa(cliaddr.sin_addr), strlen(inet_ntoa(cliaddr.sin_addr)));
             players[i].points = 1000000;
             players[i].loan_expense = 0;
-            players[i].isAllFin = 0;
+            players[i].isFin = 0;
             players[i].isDoneFake = 0;
             players[i].isSetFake = 0;
             players[i].isAchieved = 0;
@@ -343,6 +368,7 @@ void handle_in_round_msg(int player_i){
         char op_done[MAXLINE];
         switch (instr){
             case 1: //long with $dollar
+                    ; // No-operation statement
                 int long_dollar_target, long_dollar_buy;
                 sscanf(buffer3, "%*s %d $%d\n", &long_dollar_target, &long_dollar_buy);
                 long_dollar_target--;
@@ -369,6 +395,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 2: //long with amount
+                    ; // No-operation statement            
                 int long_amount_target, long_amount_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &long_amount_target, &long_amount_bought_amount);
                 long_amount_target--;
@@ -394,6 +421,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 3: //short with $dollar
+                    ; // No-operation statement            
                 int short_dollar_target, short_dollar_buy;
                 sscanf(buffer3, "%*s %d $%d\n", &short_dollar_target, &short_dollar_buy);
                 short_dollar_target--;
@@ -419,6 +447,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 4: //short with amount
+                    ; // No-operation statement            
                 int short_amount_target, short_amount_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &short_amount_target, &short_amount_bought_amount);
                 short_amount_target--;
@@ -442,6 +471,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 5: //info
+                    ; // No-operation statement
                 if(players[player_i].points < OP_INFO_PRICE){
                     sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
                             OP_INFO_PRICE, players[player_i].points);
@@ -459,6 +489,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 6: //fake
+                    ; // No-operation statement
                 if(players[player_i].points < OP_FAKE_PRICE){
                     sprintf(op_fail, "(fake operation requires %d points, you only have %d points.)\n", 
                             OP_FAKE_PRICE, players[player_i].points);
@@ -475,7 +506,7 @@ void handle_in_round_msg(int player_i){
                 else{
                     players[player_i].points -= OP_FAKE_PRICE;
                     players[player_i].isDoneFake = 1;
-                    for (int i = 0; i < MAX_USERS; i++)
+                    for (int i = 0; i < MAX_PLAYERS; i++)
                         if (i != player_i && players[i].connfd != -1)
                             players[i].isSetFake = 1;
 
@@ -485,6 +516,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 7: //loan
+                    ; // No-operation statement
                 int need;
                 sscanf(buffer3, "%*s %d\n", &need);
 
@@ -545,7 +577,7 @@ News* get_3_random_news(){
     return n;
 }
 
-News* pick_1_fake_news(News* news_in){
+/*News* pick_1_fake_news(News* news_in){
     srand(time(0));
     int random = rand() % 3;
 
@@ -557,11 +589,11 @@ News* pick_1_fake_news(News* news_in){
         }
     }
 
-    for (int i = 0; i < 8; j++)
+    for (int i = 0; i < 8; i++)
         n[random].fluctuations = -n[random].fluctuations;
 
     return n;
-}
+}*/
 
 int extract_instr(char *str) {
     char firstWord[10];
