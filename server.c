@@ -81,7 +81,7 @@ const char NEWS_CONTENTS[TOTAL_NEWS][200] = {
     "漢堡王宣布離開台灣並撤出所有業務",
     "OPEC宣布對支持以色列的國家實施制裁"
 };
-const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = { //TODO:
+const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = {
     //"麥當勞股票","長榮航空股票","黃金","鑽石","石油","大豆","PS5遊戲卡帶","任天堂遊戲卡帶"
     { 0.4,  0.0,  0.0, -0.1,  0.0,  0.0,  0.0,  0.0},
     { 0.0, -0.3,  0.0,  0.0,  0.4,  0.0,  0.0,  0.0},
@@ -114,11 +114,11 @@ const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = { //TODO:
     { 0.2,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0},
     { 0.0,  0.0,  0.0,  0.0,  0.4,  0.0,  0.0,  0.0},
 };
-const char* ITEM_NAMES[8] = {"麥當勞股票","長榮航空股票","黃金","鑽石","石油","大豆","PS5遊戲卡帶","任天堂遊戲卡帶"}; // TODO:
-const int ITEM_INIT_PRICE[8] = {1000, 10000}; //TODO:
-const int OP_INFO_PRICE = 200000; //TODO:
-const int OP_FAKE_PRICE = 500000; //TODO:
-const int LOAN_INTEREST = 20; //TODO:
+const char* ITEM_NAMES[8] = {"麥當勞股票","長榮航空股票","黃金","鑽石","石油","大豆","PS5遊戲卡帶","任天堂遊戲卡帶"};
+const int ITEM_INIT_PRICE[8] = {10000, 1238, 6666, 185858, 5004, 999, 1592, 1372};
+const int OP_INFO_PRICE = 200000; // 購買 info 的價格
+const int OP_FAKE_PRICE = 500000; // 購買 fake news 的價格
+const int LOAN_INTEREST = 20; // 借貸利率
 
 //Global Variables
 int listenfd, maxfd;
@@ -130,7 +130,7 @@ News news_rounds[5][3];
 float item_fluctuation_rounds_fake[5][8];
 int item_prices_rounds[5][8];
 int item_fluctuations_rounds[5][8];
-int bankrupt_count;
+int bankrupt_count = 0;
 News* newNews;
 News* fakeNews;
 
@@ -143,6 +143,11 @@ News* get_3_random_news();
 //News* pick_1_fake_news(News*);
 int extract_instr(char*);
 int isContainDollarSign(char*);
+void calculateItemFluctuations(int);
+void sendPointsAndNews(int);
+void sendPricesInfo(int);
+void playerPhase();
+void closingPhase(int);
 
 int main(){
     //Socket settings
@@ -165,21 +170,25 @@ int main(){
     	handle_new(); //wait for players
 
     //Round 1 - prepare phase
-    //news_rounds[0] = get_3_random_news(); //news for this round
+    
     newNews = get_3_random_news(); //news for this round
     for (int i = 0; i < 3; i++)
         news_rounds[0][i] = newNews[i];
 
-    for(int i = 0; i < 8; i++)
+    calculateItemFluctuations(0); //calculate item fluctuations for round 1
+    /*for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
             for(int k = 0; k < 8; k++)
                 item_fluctuations_rounds[0][i] += news_rounds[0][j].fluctuations[k]; //fluctuations for closing phase
-
+    */
+   
     for(int i = 0; i < 8; i++){
         item_prices_rounds[0][i] = ITEM_INIT_PRICE[i]; //prices for this round
         item_prices_rounds[1][i] = item_prices_rounds[0][i] * item_fluctuations_rounds[0][i]; //prices for next round
     }
 
+    sendPointsAndNews(0); //send points and news in round 1
+    /*
     for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news
         if(players[i].connfd != -1){
             if(players[i].character == 1){
@@ -196,7 +205,10 @@ int main(){
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
     }
-
+    */
+    
+    sendPricesInfo(0); //send round 1 info
+    /*
     for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
             char buffer5[MAXLINE];
@@ -209,9 +221,11 @@ int main(){
             memset(buffer5, 0, sizeof(buffer5)); //clear buffer5
         }
     }
+    */
 
     //Round 1 - player phase
-    while (!isAllFin()) {
+    playerPhase(); //wait for players to finish their operations in round 1
+    /*while (!isAllFin()) {
         fd_set rset = allset;
         Select(maxfd + 1, &rset, NULL, NULL, NULL);
         for (int i = 0; i < MAX_PLAYERS; i++){
@@ -219,10 +233,14 @@ int main(){
                 handle_in_round_msg(i); //select and handle readable connfd
             }
         }
-    }
+    }*/
     
     //Round 1 - closing phase
-    for(int i = 0; i < MAX_PLAYERS; i++){
+    closingPhase(0); // settle the account in round 1  
+    if (bankrupt_count >= MAX_PLAYERS - 1) 
+        goto end_game;
+    
+    /*for(int i = 0; i < MAX_PLAYERS; i++){
         if (players[i].connfd != -1){
             char buffer6[MAXLINE];
             sprintf(buffer6, "end of this round.\n, items fluctuations for this round is:\n");
@@ -232,7 +250,7 @@ int main(){
             for(int j = 0; j < 8; j++){
                 if(item_fluctuations_rounds[0][j]){
                     char buffer7[MAXLINE];
-                    sprintf(buffer7, "\t%s: \t%f\n");
+                    sprintf(buffer7, "\t%s: \t%f\n", ITEM_NAMES[j], item_fluctuations_rounds[0][j]); //TODO:
                     Writen(players[i].connfd, buffer7, strlen(buffer7)); //send item fluctuations
                     memset(buffer7, 0, sizeof(buffer7)); //clear buffer7
                 }
@@ -289,7 +307,7 @@ int main(){
                 }
             }
         }
-    }
+    }*/
     
     //Round 2
     current_round = 2;
@@ -331,7 +349,7 @@ int main(){
 
     //After game
         //TODO: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
-    end_game:   //有可能是破產才來到end_game, at line 195
+    end_game:   //有可能是破產才來到end_game
 
 	return 0;
 }
@@ -423,8 +441,8 @@ void handle_in_round_msg(int player_i){
         char op_fail[MAXLINE];
         char op_done[MAXLINE];
         switch (instr){
-            case 1: //long with $dollar
-                    ; // No-operation statement
+            case 1: //get long with $dollar
+                    ; 
                 int long_dollar_target, long_dollar_buy;
                 sscanf(buffer3, "%*s %d $%d\n", &long_dollar_target, &long_dollar_buy);
                 long_dollar_target--;
@@ -450,8 +468,8 @@ void handle_in_round_msg(int player_i){
                     players[player_i].isAchieved = -1; //achievement failed - air force general goes long
                 break;
             
-            case 2: //long with amount
-                    ; // No-operation statement            
+            case 2: //get long with amount
+                    ;             
                 int long_amount_target, long_amount_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &long_amount_target, &long_amount_bought_amount);
                 long_amount_target--;
@@ -476,8 +494,8 @@ void handle_in_round_msg(int player_i){
                     players[player_i].isAchieved = -1; //achievement failed - air force general goes long
                 break;
             
-            case 3: //short with $dollar
-                    ; // No-operation statement            
+            case 3: //get short with $dollar
+                    ;             
                 int short_dollar_target, short_dollar_buy;
                 sscanf(buffer3, "%*s %d $%d\n", &short_dollar_target, &short_dollar_buy);
                 short_dollar_target--;
@@ -502,8 +520,8 @@ void handle_in_round_msg(int player_i){
                     players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
                 break;
             
-            case 4: //short with amount
-                    ; // No-operation statement            
+            case 4: //get short with amount
+                    ;             
                 int short_amount_target, short_amount_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &short_amount_target, &short_amount_bought_amount);
                 short_amount_target--;
@@ -527,7 +545,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 5: //info
-                    ; // No-operation statement
+                    ; 
                 if(players[player_i].points < OP_INFO_PRICE){
                     sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
                             OP_INFO_PRICE, players[player_i].points);
@@ -545,7 +563,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 6: //fake
-                    ; // No-operation statement
+                    ; 
                 if(players[player_i].points < OP_FAKE_PRICE){
                     sprintf(op_fail, "(fake operation requires %d points, you only have %d points.)\n", 
                             OP_FAKE_PRICE, players[player_i].points);
@@ -572,7 +590,7 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 7: //loan
-                    ; // No-operation statement
+                    ; 
                 int need;
                 sscanf(buffer3, "%*s %d\n", &need);
 
@@ -706,4 +724,129 @@ int isAllFin(){
         if(players[i].connfd != -1 && players[i].isFin == 0)
             return 0;
     return 1;
+}
+
+
+void calculateItemFluctuations(int round) {
+    for(int i = 0; i < 8; i++)
+        for(int j = 0; j < 3; j++)
+            for(int k = 0; k < 8; k++)
+                item_fluctuations_rounds[round][i] += news_rounds[round][j].fluctuations[k];
+}
+
+void sendPointsAndNews(int round) { //TODO:
+    for(int i = 0; i < MAX_PLAYERS; i++){ //send round and news
+        if(players[i].connfd != -1){
+            if(players[i].character == 1){
+                players[i].points += 1000000; //init points - 交大富二代
+                Writen(players[i].connfd, "Round 1\nYou have 2,000,000 points!\n", 35); //send round and points info
+            }
+            else
+                Writen(players[i].connfd, "Round 1\nYou have 1,000,000 points!\n", 35); //send round and points info
+
+            char buffer4[MAXLINE];
+            sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
+                    news_rounds[round]->news_content, news_rounds[round + 1]->news_content, news_rounds[round + 2]->news_content);
+            Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
+            memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
+        }
+    }
+}
+
+void sendPricesInfo(int round) {
+        for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
+        if(players[i].connfd != -1){
+            char buffer5[MAXLINE];
+            sprintf(buffer5, "(1)%s:\t$%d\n(2)%s:\t$%d\n(3)%s:\t$%d\n(4)%s:\t$%d\n(5)%s:\t$%d\n(6)%s:\t$%d\n(7)%s:\t$%d\n(8)%s:\t$%d\n",
+                    ITEM_NAMES[0], item_prices_rounds[round][0], ITEM_NAMES[1], item_prices_rounds[round][1], 
+                    ITEM_NAMES[2], item_prices_rounds[round][2], ITEM_NAMES[3], item_prices_rounds[round][3], 
+                    ITEM_NAMES[4], item_prices_rounds[round][4], ITEM_NAMES[5], item_prices_rounds[round][5], 
+                    ITEM_NAMES[6], item_prices_rounds[round][6], ITEM_NAMES[7], item_prices_rounds[round][7]);
+            Writen(players[i].connfd, buffer5, strlen(buffer5)); //send item prices
+            memset(buffer5, 0, sizeof(buffer5)); //clear buffer5
+        }
+    }
+}
+
+void playerPhase() {
+    while (!isAllFin()) {
+        fd_set rset = allset;
+        Select(maxfd + 1, &rset, NULL, NULL, NULL);
+        for (int i = 0; i < MAX_PLAYERS; i++){
+            if (players[i].connfd != -1 && FD_ISSET(players[i].connfd, &rset)){
+                handle_in_round_msg(i); //select and handle readable connfd
+            }
+        }
+    }
+}
+
+void closingPhase(int round) {
+    for(int i = 0; i < MAX_PLAYERS; i++){
+        if (players[i].connfd != -1){
+            char buffer6[MAXLINE];
+            sprintf(buffer6, "end of this round.\n, items fluctuations for this round is:\n");
+            Writen(players[i].connfd, buffer6, strlen(buffer6)); //send text
+            memset(buffer6, 0, sizeof(buffer6)); //clear buffer6
+
+            for(int j = 0; j < 8; j++){
+                if(item_fluctuations_rounds[round][j]){
+                    char buffer7[MAXLINE];
+                    sprintf(buffer7, "\t%s: \t%f\n", ITEM_NAMES[j], item_fluctuations_rounds[round][j]); //TODO:
+                    Writen(players[i].connfd, buffer7, strlen(buffer7)); //send item fluctuations
+                    memset(buffer7, 0, sizeof(buffer7)); //clear buffer7
+                }
+            }
+
+            int earned = 0;
+            for(int j = 0; j < 8; j++){
+                earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j]; // TODO:
+            }
+            players[i].points += earned;
+
+            char buffer8[MAXLINE];
+            sprintf(buffer8, "your revenue on investment for this round is %d points.\nyou have %d point in total right now.\n", 
+                    earned, players[i].points);
+            Writen(players[i].connfd, buffer8, strlen(buffer8)); //send revenues and total points
+            memset(buffer8, 0, sizeof(buffer8)); //clear buffer8
+
+            if(players[i].loan_expense){
+                players[i].points -= players[i].loan_expense; //update points
+
+                char buffer9[MAXLINE];
+                sprintf(buffer9, "your loan expense is $%d, the bank has deducted the points. your current points is $%d\n", 
+                        players[i].loan_expense, players[i].points);
+                Writen(players[i].connfd, buffer9, strlen(buffer9)); //send loan expense and the updated points
+                memset(buffer9, 0, sizeof(buffer9)); //clear buffer9
+
+                players[i].loan_expense = 0; //clear loan
+            }
+
+            if(players[i].points <= 0){
+                bankrupt_count++;
+
+                char buffer10[MAXLINE];
+                sprintf(buffer10, "You have gone bankrupt, game over.\n", players[i].loan_expense, players[i].points);
+                Writen(players[i].connfd, buffer10, strlen(buffer10)); //send player bankrupt
+                memset(buffer10, 0, sizeof(buffer10)); //clear buffer10
+                players[i].connfd=-1; //remove this player
+
+                for(int j = 0; j < MAX_PLAYERS; j++){
+                    if(players[j].connfd != -1 && i != j){
+                        char buffer11[MAXLINE];
+                        sprintf(buffer11, "player %s bankrupt.\n", players[i].name);
+                        Writen(players[i].connfd, buffer11, strlen(buffer11)); //send who bankrupt
+                        memset(buffer11, 0, sizeof(buffer11)); //clear buffer11
+                    }
+                }
+
+                if(bankrupt_count >= MAX_PLAYERS - 1){
+                    char buffer11[MAXLINE];
+                    sprintf(buffer11, "You are the only one who has not gone bankrupt. ending the game...\n");
+                    Writen(players[i].connfd, buffer11, strlen(buffer11)); //send who bankrupt
+                    memset(buffer11, 0, sizeof(buffer11)); //clear buffer11
+                    break;
+                }
+            }
+        }
+    }
 }
