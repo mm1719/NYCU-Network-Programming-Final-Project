@@ -163,7 +163,6 @@ float item_fluctuation_rounds_fake[5][8];
 int item_prices_rounds[5][8];
 int item_fluctuations_rounds[5][8];
 int bankrupt_count = 0;
-News* newNews;
 //News* fakeNews;
 int prevPoints[2];
 
@@ -849,7 +848,7 @@ int isAllFin(){
 }
 
 void setRandomNews(int round) {
-    newNews = get_3_random_news(); //news for this round
+    News* newNews = get_3_random_news(); //news for this round
     for (int i = 0; i < 3; i++)
         news_rounds[round][i] = newNews[round];
 }
