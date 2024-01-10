@@ -161,6 +161,22 @@ void xchg_data(FILE *fp, int sockfd)
     moveTo(0, 0);
 
     len = read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");
+
+    len = read(sockfd, recvline, MAXLINE); // recv: news
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");
+
+    len = read(sockfd, recvline, MAXLINE); // recv: price
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");
+
+
+    /*len = read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
     int player_points = 0, round;
     char tmp1[20];
     if (cha_no == 1)
@@ -175,7 +191,7 @@ void xchg_data(FILE *fp, int sockfd)
     printf("%s", recvline);
     printf("\n\n");
 
-    memset(recvline, 0, sizeof(recvline));
+    memset(recvline, 0, sizeof(recvline));*/
 
     /*char dst_2[20][80];
     int s_size2;
