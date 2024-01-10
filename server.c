@@ -27,7 +27,7 @@ typedef struct{
 
 //Constant Global Variables
 const int MAX_PLAYERS = 2;
-const char WELCOME_AND_CHARACTERS[300] = 
+const char WELCOME_AND_CHARACTERS[600] = 
 "Welcome! Choose your character:\n\n"
 "no.0: 老百姓\n"
 "\t能力: 無\n"
@@ -41,13 +41,13 @@ const char WELCOME_AND_CHARACTERS[300] =
 "no.3: 虧損鬼才\n"
 "\t能力: 最終結算時, 將2倍的虧損金額加至對手積分\n"
 "\t挑戰: 若全程虧損且每次虧損金額不小於於現有積分之10%%, 獲得3百萬積分\n\n"
-"請輸入整數(0 ~ 3)選擇角色: ";
+"請輸入整數(0 ~ 3)選擇角色:\n";
 const int TOTAL_NEWS = 30; //TBD
-const char NEWS_CONTENTS[][200] = { //TBD
+const char NEWS_CONTENTS[TOTAL_NEWS][200] = { //TBD
     "AAA",
     "BBB"
 };
-const float NEWS_FLUCTUATIONS[][200] = { //TBD
+const float NEWS_FLUCTUATIONS[TOTAL_NEWS][8] = { //TBD
     {0.0, 0.0, 0.3, 0.0, -0.2, 0.0, 0.0, 0.0},
     {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0}
 };
@@ -76,7 +76,6 @@ int isContainDollarSign(char*);
 
 int main(){
     //Socket settings
-	int listenfd;
     listenfd = Socket(AF_INET, SOCK_STREAM, 0); //ask for socket
     
 	struct sockaddr_in servaddr;
@@ -189,6 +188,8 @@ void handle_new(){
 
             FD_SET(connfd, &allset); //add this connfd to allset
             maxfd = max(maxfd, connfd); //update maxfd
+
+            return;
         }
     }
 }
@@ -208,8 +209,6 @@ void handle_in_round_msg(int player_i){
         Close(players[player_i].connfd);
         FD_CLR(players[player_i].connfd, &allset);
         players[player_i].connfd = -1;
-        memset(players[player_i].name, 0, sizeof(players[player_i].name)); //clear player name
-		//memset(players[player_i].ip, 0, sizeof(players[player_i].ip)); //clear player ip
         
         char leaving[MAXLINE];
         if(active_players == 1){
@@ -226,6 +225,9 @@ void handle_in_round_msg(int player_i){
 	                Writen(players[i].connfd, leaving, strlen(leaving));  //send leaving msg to active players
 			memset(leaving, 0, sizeof(leaving)); //clear leaving
 		}
+
+        memset(players[player_i].name, 0, sizeof(players[player_i].name)); //clear player name
+		//memset(players[player_i].ip, 0, sizeof(players[player_i].ip)); //clear player ip
     }
 
     //player instructions
