@@ -876,7 +876,7 @@ int isContainDollarSign(char *str) {
 int isAllFin(){
     int cnt=0;
     for(int i = 0; i < MAX_PLAYERS; i++)
-        if(players[i].connfd != -1 && players[i].isFin == 0)
+        if(players[i].connfd != -1 && players[i].isFin == 1)
             return 0;
     return 1;
 }
