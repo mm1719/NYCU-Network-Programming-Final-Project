@@ -226,31 +226,31 @@ int main(){
     current_round = 2;
     news_rounds[1] = get_3_random_news();
     news_rounds_fake[1] = pick_1_fake_news(news_rounds[1]);
-    //copy from Round 1: 設定下回合的item_prices_rounds&item_fluctuations_rounds, 送出新聞, player phase, ending phase
-    //new things to do: 送出假新聞if(players[i].isSetFake)
+        //copy from Round 1: 設定下回合的item_prices_rounds&item_fluctuations_rounds, 送出新聞, player phase, ending phase
+        //new things to do: 送出假新聞if(players[i].isSetFake)
 
     //Round 3
     current_round = 3;
     news_rounds[2] = get_3_random_news();
     news_rounds_fake[2] = pick_1_fake_news(news_rounds[2]);
-    //copy round 2
+        //copy round 2
 
     //Round 4
     current_round = 4;
     news_rounds[3] = get_3_random_news();
     news_rounds_fake[3] = pick_1_fake_news(news_rounds[3]);
-    //copy round 2
+        //copy round 2
 
     //Round 5
     current_round = 5;
     news_rounds[4] = get_3_random_news();
     news_rounds_fake[4] = pick_1_fake_news(news_rounds[4]);
-    //copy round 2 & 技能(虧損轉移)
+        //copy round 2
+        //new things to do: character3技能(虧損轉移)
 
     //After game
-    //copy round 2
-    //new things to do: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
-    end_game://有可能是破產才來到end_game
+        //new things to do: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
+    end_game:   //有可能是破產才來到end_game
 
 	return 0;
 }
