@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 #include "ansi_escape.h"
 
 char id[MAXLINE];
@@ -22,6 +23,20 @@ const char instruction_format[500] =
     "\t\x1b[0mex: 貸款1000元\n"
     "\t\tloan 1000\n"
     "\x1b[0m結束這回合:\x1b[36mfinish\x1b[0m\n";
+
+int isdigitstr(char *str, int ini)
+{
+    int len = strlen(str);
+    int i;
+
+    for (i = ini; i < len; i++)
+    {
+        if (str[i] != '\n')
+            if (!(isdigit(str[i])))
+                return 0;
+    }
+    return 1;
+}
 
 int isContainDollarSign(char *str)
 {
@@ -144,17 +159,7 @@ void xchg_data(FILE *fp, int sockfd)
     memset(recvline, 0, sizeof(recvline));
     clearScreen();
     moveTo(0, 0);
-    char dst_2[20][80];
-    int s_size2;
-    // len = read(sockfd, recvline, MAXLINE); // recv: news
-    // s_size2=(dst_2, recvline, "\n");
-    /*
-    for(i=0;i<s_size2;i++){
-        printf("%s\n",dst[i]);
-    }
-    printf("\n");
-    */
-    // memset(recvline, 0, sizeof(recvline));
+
     len = read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
     int player_points = 0, round;
     char tmp1[20];
@@ -169,17 +174,42 @@ void xchg_data(FILE *fp, int sockfd)
     sscanf(recvline, "%s %d", tmp1, &round);
     printf("%s", recvline);
     printf("\n\n");
-    printf("%s", instruction_format);
+
+    memset(recvline, 0, sizeof(recvline));
+
+    /*char dst_2[20][80];
+    int s_size2;
+    len = read(sockfd, recvline, MAXLINE); // recv: news
+    s_size2 = (dst_2, recvline, "\n");
+
+    for (i = 0; i < s_size2; i++)
+    {
+        printf("%s\n", dst[i]);
+    }
+    printf("\n");
+    memset(recvline, 0, sizeof(recvline));*/
+
+    /*len = read(sockfd, recvline, MAXLINE); // recv: price
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");
+    */
+
+    printf("%s", instruction_format); // print instruction format
     printf("\n\n");
     printf("input:");
     memset(sendline, 0, sizeof(sendline));
+    char sendline_2[MAXLINE];
     int instr;
     int bk = 0;
     while (!(bk == 1 && instr == 8))
     {
         int bk = 0;
+        memset(sendline, 0, sizeof(sendline));
         Fgets(sendline, MAXLINE, fp); // input instruction.
-        instr = extract_instr(sendline);
+
+        strcpy(sendline_2, sendline);
+        instr = extract_instr(sendline_2);
         char dst_3[20][80];
         int s_size3;
         if (instr != -1)
@@ -189,32 +219,32 @@ void xchg_data(FILE *fp, int sockfd)
             switch (instr)
             {
             case 1: // long with $dollar
-                s_size3 = split(dst_3, sendline, " ");
-                if (s_size3 == 3)
+                s_size3 = split(dst_3, sendline_2, " ");
+                if (s_size3 == 3 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 1))
                 {
                     bk = 1;
                 }
                 break;
 
             case 2: // long with amount
-                s_size3 = split(dst_3, sendline, " ");
-                if (s_size3 == 3)
+                s_size3 = split(dst_3, sendline_2, " ");
+                if (s_size3 == 3 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 0))
                 {
                     bk = 1;
                 }
                 break;
 
             case 3: // short with $dollar
-                s_size3 = split(dst_3, sendline, " ");
-                if (s_size3 == 3)
+                s_size3 = split(dst_3, sendline_2, " ");
+                if (s_size3 == 3 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 1))
                 {
                     bk = 1;
                 }
                 break;
 
             case 4: // short with amount
-                s_size3 = split(dst_3, sendline, " ");
-                if (s_size3 == 3)
+                s_size3 = split(dst_3, sendline_2, " ");
+                if (s_size3 == 3 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 0))
                 {
                     bk = 1;
                 }
@@ -229,8 +259,8 @@ void xchg_data(FILE *fp, int sockfd)
                 break;
 
             case 7: // loan
-                s_size3 = split(dst_3, sendline, " ");
-                if (s_size3 == 2)
+                s_size3 = split(dst_3, sendline_2, " ");
+                if (s_size3 == 2 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 0))
                 {
                     bk = 1;
                 }
@@ -248,21 +278,41 @@ void xchg_data(FILE *fp, int sockfd)
         {
             moveUp(2);
             clearLine();
+
+            Writen(sockfd, sendline, strlen(sendline));
+            if (instr != 8)
+            {
+                moveUp(1);
+                clearLine();
+
+                memset(recvline, 0, sizeof(recvline));
+                len = read(sockfd, recvline, MAXLINE); // recv: feedback from server
+                recvline[len] = '\0';
+                printf("feedback:%s", recvline);
+            }
+
             printf("\n");
-            clearLine();
-            printf("input:");
-            break;
+            if (instr != 8)
+            {
+                clearLine();
+                printf("input:");
+            }
         }
         else
         {
-            moveUp(2);
+            moveUp(3);
+            clearLine();
+            moveDown(1);
             clearLine();
             printf("\x1b[%dmwrong instruction format, please input again\n", RED_TXT);
-            clearLine();
             resetColor();
+            clearLine();
+
             printf("input:");
         }
     }
+    clearScreen();
+    moveTo(0, 0);
 
     stdineof = 0;
     peer_exit = 0;
