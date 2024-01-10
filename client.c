@@ -23,6 +23,66 @@ const char instruction_format[500] =
     "\t\tloan 1000\n"
     "\x1b[0m結束這回合:\x1b[36mfinish\x1b[0m\n";
 
+int isContainDollarSign(char *str)
+{
+    while (*str)
+    {
+        if (*str == '$')
+        {
+            return 1;
+        }
+        str++;
+    }
+
+    return 0;
+}
+
+int extract_instr(char *str)
+{
+    char firstWord[10];
+
+    int i = 0;
+    while (str[i] != ' ' && str[i] != '\n')
+    {
+        firstWord[i] = str[i];
+        i++;
+    }
+    firstWord[i] = 0;
+
+    if (strcmp(firstWord, "long") == 0)
+    {
+        if (isContainDollarSign(str))
+            return 1;
+        else
+            return 2;
+    }
+    else if (strcmp(firstWord, "short") == 0)
+    {
+        if (isContainDollarSign(str))
+            return 3;
+        else
+            return 4;
+    }
+    else if (strcmp(firstWord, "info") == 0)
+    {
+        return 5;
+    }
+    else if (strcmp(firstWord, "fake") == 0)
+    {
+        return 6;
+    }
+    else if (strcmp(firstWord, "loan") == 0)
+    {
+        return 7;
+    }
+    else if (strcmp(firstWord, "finish") == 0)
+    {
+        return 8;
+    }
+
+    return -1;
+}
+
 int split(char dst[][80], char *str, const char *spl)
 {
     int n = 0;
@@ -108,28 +168,104 @@ void xchg_data(FILE *fp, int sockfd)
     }
     sscanf(recvline, "%s %d", tmp1, &round);
     printf("%s", recvline);
-    printf("\n\n\n\n");
+    printf("\n\n");
     printf("%s", instruction_format);
+    printf("\n\n");
     printf("input:");
     memset(sendline, 0, sizeof(sendline));
-    while (1)
+    int instr;
+    int bk = 0;
+    while (!(bk == 1 && instr == 8))
     {
-        bool bk = false;
+        int bk = 0;
         Fgets(sendline, MAXLINE, fp); // input instruction.
-        int instr = extract_instr(buffer3);
+        instr = extract_instr(sendline);
+        char dst_3[20][80];
+        int s_size3;
+        if (instr != -1)
+        {
 
-        
+            char not_enough[MAXLINE];
+            switch (instr)
+            {
+            case 1: // long with $dollar
+                s_size3 = split(dst_3, sendline, " ");
+                if (s_size3 == 3)
+                {
+                    bk = 1;
+                }
+                break;
+
+            case 2: // long with amount
+                s_size3 = split(dst_3, sendline, " ");
+                if (s_size3 == 3)
+                {
+                    bk = 1;
+                }
+                break;
+
+            case 3: // short with $dollar
+                s_size3 = split(dst_3, sendline, " ");
+                if (s_size3 == 3)
+                {
+                    bk = 1;
+                }
+                break;
+
+            case 4: // short with amount
+                s_size3 = split(dst_3, sendline, " ");
+                if (s_size3 == 3)
+                {
+                    bk = 1;
+                }
+                break;
+
+            case 5: // info
+                bk = 1;
+                break;
+
+            case 6: // fake
+                bk = 1;
+                break;
+
+            case 7: // loan
+                s_size3 = split(dst_3, sendline, " ");
+                if (s_size3 == 2)
+                {
+                    bk = 1;
+                }
+                break;
+
+            case 8: // finish
+                bk = 1;
+                break;
+
+                // case -1: //invalid
+                //     break;
+            }
+        }
         if (bk)
         {
+            moveUp(2);
+            clearLine();
+            printf("\n");
+            clearLine();
+            printf("input:");
             break;
         }
-        moveUp(1);
-        clearLine();
+        else
+        {
+            moveUp(2);
+            clearLine();
+            printf("\x1b[%dmwrong instruction format, please input again\n", RED_TXT);
+            clearLine();
+            resetColor();
+            printf("input:");
+        }
     }
 
     stdineof = 0;
     peer_exit = 0;
-
     for (;;)
     {
         FD_ZERO(&rset);
@@ -218,50 +354,4 @@ int main(int argc, char **argv)
     xchg_data(stdin, sockfd); /* do it all */
 
     exit(0);
-}
-
-int extract_instr(char *str)
-{
-    char firstWord[10];
-
-    int i = 0;
-    while (str[i] != ' ' && str[i] != '\n')
-    {
-        firstWord[i] = str[i];
-        i++;
-    }
-    firstWord[i] = 0;
-
-    if (strcmp(firstWord, "long") == 0)
-    {
-        if (isContainDollarSign(str))
-            return 1;
-        else
-            return 2;
-    }
-    else if (strcmp(firstWord, "short") == 0)
-    {
-        if (isContainDollarSign(str))
-            return 3;
-        else
-            return 4;
-    }
-    else if (strcmp(firstWord, "info") == 0)
-    {
-        return 5;
-    }
-    else if (strcmp(firstWord, "fake") == 0)
-    {
-        return 6;
-    }
-    else if (strcmp(firstWord, "loan") == 0)
-    {
-        return 7;
-    }
-    else if (strcmp(firstWord, "finish") == 0)
-    {
-        return 8;
-    }
-
-    return -1;
 }
