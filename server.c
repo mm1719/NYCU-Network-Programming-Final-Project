@@ -892,6 +892,7 @@ void setRandomNews(int round) {
     for (int i = 0; i < 3; i++) {
         news_rounds[round][i] = newNews[i];
     }
+    fprintf(stdout, "%s\n", news_rounds[round][1].news_content);
 }
 
 void setPriceAndFluctuations(int round) {
@@ -929,7 +930,7 @@ void sendPointsAndNews(int round) {
 
             char buffer4[MAXLINE];
             sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
-                    news_rounds[0]->news_content, news_rounds[1]->news_content, news_rounds[2]->news_content);
+                    news_rounds[round][0].news_content, news_rounds[round][1].news_content, news_rounds[round][2].news_content);
             Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
