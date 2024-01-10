@@ -150,6 +150,7 @@ void sendPricesInfo(int);
 void playerPhase();
 void setFakeResult(int);
 void closingPhase(int);
+void claimWinner();
 
 int main(){
     //Socket settings
@@ -323,8 +324,8 @@ int main(){
 
     //Round 2
     current_round = 2;
-    prevPoints[0] = player[0].points;
-    prevPoints[1] = player[1].points;
+    prevPoints[0] = players[0].points;
+    prevPoints[1] = players[1].points;
     setRandomNews(current_round); //set random news for round 2
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 2
     sendPointsAndNews(current_round); //send points and news in round 2
@@ -348,8 +349,8 @@ int main(){
 
     //Round 3
     current_round = 3;
-    prevPoints[0] = player[0].points;
-    prevPoints[1] = player[1].points;
+    prevPoints[0] = players[0].points;
+    prevPoints[1] = players[1].points;
     setRandomNews(current_round); //set random news for round 3
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 3
     sendPointsAndNews(current_round); //send points and news in round 3
@@ -373,8 +374,8 @@ int main(){
 
     //Round 4
     current_round = 4;
-    prevPoints[0] = player[0].points;
-    prevPoints[1] = player[1].points;
+    prevPoints[0] = players[0].points;
+    prevPoints[1] = players[1].points;
     setRandomNews(current_round); //set random news for round 4
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 4
     sendPointsAndNews(current_round); //send points and news in round 4
@@ -398,8 +399,8 @@ int main(){
 
     //Round 5
     current_round = 5;
-    prevPoints[0] = player[0].points;
-    prevPoints[1] = player[1].points;
+    prevPoints[0] = players[0].points;
+    prevPoints[1] = players[1].points;
     setRandomNews(current_round); //set random news for round 5
     setPriceAndFluctuations(current_round); //calculate item fluctuations for round 5
     sendPointsAndNews(current_round); //send points and news in round 5
@@ -410,20 +411,31 @@ int main(){
     if (bankrupt_count >= MAX_PLAYERS - 1) 
         goto end_game;
 
-    //TODO: character3技能(虧損轉移)
+    //character3技能(虧損轉移)
     int loss[2];
     for (int i = 0, j = 1; i < 2; i++, j--) {
-        if (player[i].character == 3)
-            loss[i] = (1000000 - player[i].points) * 2;
+        if (players[i].character == 3)
+            loss[i] = (1000000 - players[i].points) * 2;
     }
     for (int i = 0, j = 1; i < 2; i++, j--) {
-        if (player[i].character == 3)
+        if (players[i].character == 3)
             if (loss[i] > 0)
-                player[j].points -= loss[i];
+                players[j].points -= loss[i];
     }
 
     //After game
-        //TODO: 挑戰成功加分(完成一半: if(players[i].isAchieved==-1)character1&2不加分; =0則加分, 尚未實作: character3), 最終分數, 誰是贏家
+        //TODO: 挑戰成功加分(完成一半: 最終分數, 誰是贏家
+    for (int i = 0; i < 2; i++) {    
+        if (players[i].isAchieved == 0) {
+            if (players[i].character == 1 || players[i].character == 2)
+                players[i].points += 1000000;
+            else if (players[i].character == 3)
+                players[i].points += 3000000;
+        }
+    }
+
+    claimWinner();
+    
     end_game:   //有可能是破產才來到end_game
 
 	return 0;
@@ -621,7 +633,7 @@ void handle_in_round_msg(int player_i){
                     players[player_i].isAchieved = -1; //achievement failed - student buy non-stock items
                 break;
             
-            case 5: //info
+            case 5: //info  //TODO:
                     ; 
                 if(players[player_i].points < OP_INFO_PRICE){
                     sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
@@ -951,17 +963,41 @@ void setFakeResult(int round) {
     srand(time(0));
     int random = rand() % 3;
     for (int i = 0; i < 8; i++) {
-        news_round[round][random].fluctuations[i] = -news_round[round][random].fluctuations[i];
+        news_rounds[round][random].fluctuations[i] = -news_rounds[round][random].fluctuations[i];
     }
 }
 
 void checkCharacter3() {
     for (int i = 0; i < 2; i++) {
-        if (player[i].character == 3) {
-            if (player[i].isAchieved == -1)
+        if (players[i].character == 3) {
+            if (players[i].isAchieved == -1)
                 continue;
-            if (prevPoints[i] * 0.9 <= player[i].points)
-                player[i].isAchieved = -1;
+            if (prevPoints[i] * 0.9 <= players[i].points)
+                players[i].isAchieved = -1;
         }
     }
+}
+
+void claimWinner() {
+    char bufferWin[MAXLINE], bufferLose[MAXLINE], bufferTie[MAXLINE];
+    if (players[0].points > players[1].points) {
+        sprintf(bufferWin, "Congratulations, %s! You won the game!\n", players[0].name);
+        Writen(players[0].connfd, bufferWin, strlen(bufferWin));
+        sprintf(bufferLose, "So sorry, %s. You lost the game!\n", players[1].name);
+        Writen(players[1].connfd, bufferLose, strlen(bufferLose));
+    }
+    else if (players[1].points > players[0].points) {
+        sprintf(bufferWin, "Congratulations, %s! You won the game!\n", players[1].name);
+        Writen(players[1].connfd, bufferWin, strlen(bufferWin));
+        sprintf(bufferLose, "So sorry, %s. You lost the game!\n", players[0].name);
+        Writen(players[0].connfd, bufferLose, strlen(bufferLose));
+    }
+    else {
+        sprintf(bufferTie, "It's a tie!\n");
+        Writen(players[0].connfd, bufferTie, strlen(bufferTie));
+        Writen(players[1].connfd, bufferTie, strlen(bufferTie));
+    }
+    memset(bufferWin, 0, sizeof(bufferWin));
+    memset(bufferLose, 0, sizeof(bufferLose));
+    memset(bufferTie, 0, sizeof(bufferTie));
 }
