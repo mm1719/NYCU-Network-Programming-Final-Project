@@ -280,7 +280,9 @@ int main(){
         players[1].isDoneFake = 0;
         players[1].isSetFake = 0;
     }   
-
+    printf("closing phase\n");
+    memset(bigBuffer[0], 0, sizeof(bigBuffer[0]));
+    memset(bigBuffer[1], 0, sizeof(bigBuffer[1]));
     //Round 1 - closing phase
     closingPhase(current_round); // settle the account in round 1  
     checkCharacter3(); //check if character3 fails
@@ -704,7 +706,8 @@ void handle_in_round_msg(int player_i){
                 break;
             
             case 5: //info
-                    ; 
+                    ;
+                printf("In Info.\n"); 
                 if(players[player_i].points < OP_INFO_PRICE){
                     sprintf(op_fail, "(info operation requires %d points, you only have %d points.)\n", 
                             OP_INFO_PRICE, players[player_i].points);
@@ -972,6 +975,9 @@ void playerPhase() {
 }
 
 void closingPhase(int round) {
+    players[0].isFin = 0;
+    players[1].isFin = 0;
+    printf("In closing phase function.\n");
     round--;
     for(int i = 0; i < MAX_PLAYERS; i++){
         if (players[i].connfd != -1){
