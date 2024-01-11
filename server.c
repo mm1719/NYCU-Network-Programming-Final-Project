@@ -1026,9 +1026,9 @@ void sendPricesInfo(int round)
 
             // fprintf(stdout, "%s\n", buffer5);
             strcat(bigBuffer[i], buffer5);
-            // Writen(players[i].connfd, bigBuffer[i], strlen(bigBuffer[i]));
-            Writen(players[i].connfd, buffer5, strlen(buffer5)); // send item prices
-            memset(buffer5, 0, sizeof(buffer5));                 // clear buffer5
+            Writen(players[i].connfd, bigBuffer[i], strlen(bigBuffer[i]));
+            // Writen(players[i].connfd, buffer5, strlen(buffer5)); // send item prices
+            memset(buffer5, 0, sizeof(buffer5)); // clear buffer5
         }
     }
 }
