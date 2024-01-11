@@ -148,7 +148,7 @@ const char DETAILED_CONTENTS[TOTAL_NEWS][200] = {
     "受影響: 石油等",
 };
 const char *ITEM_NAMES[8] = {"麥當勞股票", "長榮航空股票", "黃金", "鑽石", "石油", "大豆", "PS5遊戲卡帶", "任天堂遊戲卡帶"};
-const int ITEM_INIT_PRICE[8] = {10000, 1238, 6666, 185858, 5004, 999, 1592, 1372};
+const int ITEM_INIT_PRICE[8] = {98, 128, 666, 1010, 504, 99, 159, 137};
 const int OP_INFO_PRICE = 200000; // 購買 info 的價格
 const int OP_FAKE_PRICE = 500000; // 購買 fake news 的價格
 const int LOAN_INTEREST = 20;     // 借貸利率
