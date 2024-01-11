@@ -170,16 +170,18 @@ void xchg_data(FILE *fp, int sockfd)
     //printf("%s", recvline);
     printf("\n");
 
-    FD_ZERO(&rset);
+    /*FD_ZERO(&rset);
     FD_SET(sockfd, &rset);
     maxfdp1 = sockfd + 1;
     Select(maxfdp1, &rset, NULL, NULL, NULL);
     if (FD_ISSET(sockfd, &rset))
-    { /* socket is readable */
+    {  //socket is readable 
         if (Readline(sockfd, recvline, MAXLINE) == 0)
             err_quit("str_cli: server terminated prematurely");
+        
+        recvline[strlen(recvline)] = '\0';
         Fputs(recvline, stdout);
-    }
+    }*/
 
     /*len = Read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
     int player_points = 0, round;
@@ -216,16 +218,18 @@ void xchg_data(FILE *fp, int sockfd)
     printf("\n\n");
     */
     //printf("不見了\n");
+    fflush(stdout); // Explicitly flush stdout
     printf("%s", instruction_format); // print instruction format
     printf("\n");
     printf("input:");
+    fflush(stdout); // Explicitly flush stdout
+
     memset(sendline, 0, sizeof(sendline));
     char sendline_2[MAXLINE];
     int instr;
     int bk = 0;
     while (!(bk == 1 && instr == 8))
     {
-        int bk = 0;
         memset(sendline, 0, sizeof(sendline));
         Fgets(sendline, MAXLINE, fp); // input instruction.
 
@@ -318,6 +322,9 @@ void xchg_data(FILE *fp, int sockfd)
                 clearLine();
                 printf("input:");
             }
+
+            if (instr == 8)
+                printf("Should finish\n");
         }
         else
         {
