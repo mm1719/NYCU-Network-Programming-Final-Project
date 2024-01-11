@@ -114,122 +114,43 @@ int split(char dst[][80], char *str, const char *spl)
 void xchg_data(FILE *fp, int sockfd)
 {
     int maxfdp1, stdineof, peer_exit, n;
+    int loan = 0;
     fd_set rset;
     char sendline[MAXLINE], recvline[MAXLINE];
-
-    Writen(sockfd, id, strlen(id)); // send id to server
-    clearScreen();
-    set_scr();
-    moveTo(0, 0);
-    char dst[20][80];
-    ssize_t len = Read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
-    recvline[len] = '\0';
-    int s_size = split(dst, recvline, "\n");
-    // printf("%s", recvline);
     int i = 0;
-    for (i = 0; i < s_size; i++)
-    {
-        printf("%s", dst[i]);
-        if (i != (s_size - 1))
-            printf("\n");
-        if (i == 0 || i == 12)
-            printf("\n");
-    }
-
-    int cha_no;
-    while (1)
-    {
-        Fgets(sendline, MAXLINE, fp); // input charactor no.
-        cha_no = sendline[0] - '0';
-        n = strlen(sendline);
-        if (cha_no >= 0 && cha_no <= 3 && n == 2)
-        {
-            break;
-        }
-        moveUp(1);
-        clearLine();
-        setTextColor(RED_TXT);
-        printf("%s", dst[s_size - 1]);
-    }
-    resetColor();
-    sendline[n] = '\n';
-    Writen(sockfd, sendline, n + 1);
-
-    // Round 1 begin
+    int len;
+    int player_points;
+    // packaging
+    /**/
     memset(recvline, 0, sizeof(recvline));
     clearScreen();
-    moveTo(0, 0);
 
-    len = Read(sockfd, recvline, MAXLINE); // recv: Round 1 message
-    recvline[len] = '\0';
-    char *token = strtok(recvline, "\n");
-    while (token != NULL) {
-        printf("%s\n", token);
-        token = strtok(NULL, "\n");
-    }
-    //printf("%s", recvline);
-    printf("\n");
-
-    /*FD_ZERO(&rset);
-    FD_SET(sockfd, &rset);
-    maxfdp1 = sockfd + 1;
-    Select(maxfdp1, &rset, NULL, NULL, NULL);
-    if (FD_ISSET(sockfd, &rset))
-    {  //socket is readable 
-        if (Readline(sockfd, recvline, MAXLINE) == 0)
-            err_quit("str_cli: server terminated prematurely");
-        
-        recvline[strlen(recvline)] = '\0';
-        Fputs(recvline, stdout);
-    }*/
-
-    /*len = Read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
-    int player_points = 0, round;
-    char tmp1[20];
-    if (cha_no == 1)
-    {
-        player_points += 2000000;
-    }
-    else
-    {
-        player_points += 1000000;
-    }
-    sscanf(recvline, "%s %d", tmp1, &round);
-    printf("%s", recvline);
-    printf("\n\n");
-
-    memset(recvline, 0, sizeof(recvline));*/
-
-    /*char dst_2[20][80];
+    moveLeft(3);
+    char dst_2[20][80];
     int s_size2;
-    len = Read(sockfd, recvline, MAXLINE); // recv: news
+    sleep(1);
+    len = read(sockfd, recvline, MAXLINE); // recv: news
     s_size2 = (dst_2, recvline, "\n");
-
-    for (i = 0; i < s_size2; i++)
-    {
-        printf("%s\n", dst[i]);
-    }
-    printf("\n");
-    memset(recvline, 0, sizeof(recvline));*/
-
-    /*len = Read(sockfd, recvline, MAXLINE); // recv: price
     recvline[len] = '\0';
     printf("%s", recvline);
+    memset(recvline, 0, sizeof(recvline));
     printf("\n\n");
-    */
-    //printf("不見了\n");
-    fflush(stdout); // Explicitly flush stdout
-    printf("%s", instruction_format); // print instruction format
-    printf("\n");
-    printf("input:");
-    fflush(stdout); // Explicitly flush stdout
 
+    /*len = readn(sockfd, recvline, MAXLINE); // recv: price
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");*/
+
+    printf("%s", instruction_format); // print instruction format
+    printf("\n\n");
+    printf("input:");
     memset(sendline, 0, sizeof(sendline));
     char sendline_2[MAXLINE];
     int instr;
     int bk = 0;
     while (!(bk == 1 && instr == 8))
     {
+        int bk = 0;
         memset(sendline, 0, sizeof(sendline));
         Fgets(sendline, MAXLINE, fp); // input instruction.
 
@@ -288,6 +209,7 @@ void xchg_data(FILE *fp, int sockfd)
                 if (s_size3 == 2 && isdigitstr(dst_3[1], 0) && isdigitstr(dst_3[2], 0))
                 {
                     bk = 1;
+                    loan = 1;
                 }
                 break;
 
@@ -303,15 +225,15 @@ void xchg_data(FILE *fp, int sockfd)
         {
             moveUp(2);
             clearLine();
-
             Writen(sockfd, sendline, strlen(sendline));
+            printf("%s", sendline);
             if (instr != 8)
             {
                 moveUp(1);
                 clearLine();
 
                 memset(recvline, 0, sizeof(recvline));
-                len = Read(sockfd, recvline, MAXLINE); // recv: feedback from server
+                len = read(sockfd, recvline, MAXLINE); // recv: feedback from server
                 recvline[len] = '\0';
                 printf("feedback:%s", recvline);
             }
@@ -322,9 +244,10 @@ void xchg_data(FILE *fp, int sockfd)
                 clearLine();
                 printf("input:");
             }
-
-            if (instr == 8)
-                printf("Should finish\n");
+            else
+            {
+                break;
+            }
         }
         else
         {
@@ -339,9 +262,44 @@ void xchg_data(FILE *fp, int sockfd)
             printf("input:");
         }
     }
+
     clearScreen();
     moveTo(0, 0);
+    printf("wait a minute\n\n");
+    memset(recvline, 0, sizeof(recvline));
+    /*len = read(sockfd, recvline, MAXLINE); // closing phase
+    recvline[len] = '\0';
+    printf("%s", recvline);*/
+    /*for (i = 0; i < 8; i++)
+    {
+        memset(recvline, 0, sizeof(recvline));
+        len = read(sockfd, recvline, MAXLINE); // func
+        recvline[len] = '\0';
+        printf("%s", recvline);
+    }
+    memset(recvline, 0, sizeof(recvline));
+    len = read(sockfd, recvline, MAXLINE); // revenue
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    if (loan == 1)
+    {
+        memset(recvline, 0, sizeof(recvline));
+        len = read(sockfd, recvline, MAXLINE); // loan
+        recvline[len] = '\0';
+        printf("%s", recvline);
+        sscanf(recvline, "%d %d", i, player_points);
+        if (player_points <= 0)
+        {
+            memset(recvline, 0, sizeof(recvline));
+            len = read(sockfd, recvline, MAXLINE); // loan
+            recvline[len] = '\0';
+            printf("%s", recvline);
+        }
+    }
+    sleep(8);
+    printf("\n\n");*/
 
+    char dst_4[20][80];
     stdineof = 0;
     peer_exit = 0;
     for (;;)
@@ -363,7 +321,8 @@ void xchg_data(FILE *fp, int sockfd)
         Select(maxfdp1, &rset, NULL, NULL, NULL);
         if (FD_ISSET(sockfd, &rset))
         { /* socket is readable */
-            n = Read(sockfd, recvline, MAXLINE);
+            n = readn(sockfd, recvline, 10);
+
             if (n == 0)
             {
                 if (stdineof == 1)
@@ -373,12 +332,20 @@ void xchg_data(FILE *fp, int sockfd)
                     printf("(End of input from the peer!)");
                     peer_exit = 1;
                     return;
-                };
+                }
             }
             else if (n > 0)
             {
                 recvline[n] = '\0';
                 printf("%s", recvline);
+
+                for (i = 0; i < n; i++)
+                {
+                    if ((recvline[i]) == 'R')
+                    {
+                        return;
+                    }
+                }
             }
             else
             { // n < 0
@@ -428,8 +395,73 @@ int main(int argc, char **argv)
     strcpy(id, argv[2]);
 
     Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
+    ////
+    char sendline[MAXLINE], recvline[MAXLINE];
+    Writen(sockfd, id, strlen(id)); // send id to server
+    clearScreen();
+    set_scr();
+    moveTo(0, 0);
+    char dst[20][80];
+    int len = read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
+    recvline[len] = '\0';
+    // printf("%s", recvline);
+    int s_size = split(dst, recvline, "\n");
+    int i = 0;
+    for (i = 0; i < s_size; i++)
+    {
+        printf("%s", dst[i]);
+        if (i != (s_size - 1))
+            printf("\n");
+        if (i == 0 || i == 12)
+            printf("\n");
+    }
+    int n;
+    int cha_no;
+    while (1)
+    {
+        Fgets(sendline, MAXLINE, stdin); // input charactor no.
+        cha_no = sendline[0] - '0';
+        n = strlen(sendline);
+        if (cha_no >= 0 && cha_no <= 3 && n == 2)
+        {
+            break;
+        }
+        moveUp(1);
+        clearLine();
+        setTextColor(RED_TXT);
+        printf("%s", dst[s_size - 1]);
+    }
+    resetColor();
+    sendline[n] = '\n';
+    Writen(sockfd, sendline, n + 1);
 
+    // Round 1 begin
+
+    clearScreen();
+    moveTo(0, 0);
+
+    len = read(sockfd, recvline, 35); // recv: Round 1\n  You have 2or1,000,000 points!
+
+    int player_points = 0, round;
+    char tmp1[20];
+    if (cha_no == 1)
+    {
+        player_points += 2000000;
+    }
+    else
+    {
+        player_points += 1000000;
+    }
+
+    printf("%s", recvline);
+    printf("\n\n");
     xchg_data(stdin, sockfd); /* do it all */
-
+    sleep(8);
+    xchg_data(stdin, sockfd);
+    sleep(8);
+    xchg_data(stdin, sockfd);
+    sleep(8);
+    xchg_data(stdin, sockfd);
+    sleep(8);
     exit(0);
 }
