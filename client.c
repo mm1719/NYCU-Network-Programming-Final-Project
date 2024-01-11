@@ -456,12 +456,21 @@ int main(int argc, char **argv)
     printf("%s", recvline);
     printf("\n\n");
     xchg_data(stdin, sockfd); /* do it all */
-    sleep(8);
+
     xchg_data(stdin, sockfd);
-    sleep(8);
+
     xchg_data(stdin, sockfd);
-    sleep(8);
+
     xchg_data(stdin, sockfd);
-    sleep(8);
+
+    xchg_data(stdin, sockfd);
+
+    len = read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
+    recvline[len] = '\0';
+    memset(recvline, 0, sizeof(recvline));
+    len = read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
+    recvline[len] = '\0';
+    printf("%s", recvline);
+    printf("\n\n");
     exit(0);
 }
