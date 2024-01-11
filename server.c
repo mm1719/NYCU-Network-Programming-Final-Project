@@ -185,6 +185,7 @@ void closingPhase(int);
 void claimWinner();
 
 int main(){
+    srand(time(NULL));
     //Socket settings
     listenfd = Socket(AF_INET, SOCK_STREAM, 0); //ask for socket
     
@@ -795,13 +796,15 @@ void handle_in_round_msg(int player_i){
 }
 
 void get_3_random_news(News* n) {
-    srand(time(0));
-
     int rand_i[3]; // for randomly picking news
-    while(rand_i[0] == rand_i[1] || rand_i[1] == rand_i[2] || rand_i[0] == rand_i[2])
+
+    do {
         for(int i = 0; i < 3; i++)
             rand_i[i] = rand() % TOTAL_NEWS;
+    } while (rand_i[0] == rand_i[1] || rand_i[1] == rand_i[2] || rand_i[0] == rand_i[2]);
 
+    printf("%d %d %d\n",rand_i[0], rand_i[1], rand_i[2]);
+    
     for(int i = 0; i < 3; i++){
         strncpy(n[i].news_content, NEWS_CONTENTS[rand_i[i]], strlen(NEWS_CONTENTS[rand_i[i]])); //save news content
         for (int j = 0; j < 8; j++)
@@ -933,7 +936,7 @@ void sendPointsAndNews(int round) {
             }
 
             char buffer4[MAXLINE];
-            sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
+            sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n",
                     news_rounds[round][0].news_content, news_rounds[round][1].news_content, news_rounds[round][2].news_content);
             strcat(bigBuffer[i], buffer4);
             //Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
@@ -947,7 +950,7 @@ void sendPricesInfo(int round) {
     for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
             char buffer5[MAXLINE];
-            sprintf(buffer5, "\n\n(1)%s:\t\t$%d\n(2)%s:\t$%d\n(3)%s:\t\t$%d\n(4)%s:\t\t$%d\n(5)%s:\t\t$%d\n(6)%s:\t\t$%d\n(7)%s:\t\t$%d\n(8)%s:\t$%d\n",
+            sprintf(buffer5, "(1)%s:\t\t$%d\n(2)%s:\t$%d\n(3)%s:\t\t$%d\n(4)%s:\t\t$%d\n(5)%s:\t\t$%d\n(6)%s:\t\t$%d\n(7)%s:\t\t$%d\n(8)%s:\t$%d\n",
                     ITEM_NAMES[0], item_prices_rounds[round][0], ITEM_NAMES[1], item_prices_rounds[round][1], 
                     ITEM_NAMES[2], item_prices_rounds[round][2], ITEM_NAMES[3], item_prices_rounds[round][3], 
                     ITEM_NAMES[4], item_prices_rounds[round][4], ITEM_NAMES[5], item_prices_rounds[round][5], 
