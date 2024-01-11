@@ -483,9 +483,8 @@ int main()
         }
     }
 
+    end_game: // 有可能是破產才來到end_game
     claimWinner();
-
-end_game: // 有可能是破產才來到end_game
 
     return 0;
 }
