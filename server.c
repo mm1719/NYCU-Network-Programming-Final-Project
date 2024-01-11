@@ -632,7 +632,7 @@ void handle_in_round_msg(int player_i){
             
             case 2: //get long with amount
                     ;             
-                int long_amount_target, long_amou.bought_amountsnt_bought_amount;
+                int long_amount_target, long_amount_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &long_amount_target, &long_amount_bought_amount);
                 long_amount_target--;
 
