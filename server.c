@@ -161,7 +161,7 @@ int current_round = 1;
 News news_rounds[5][3];
 float item_fluctuation_rounds_fake[5][8];
 int item_prices_rounds[5][8];
-int item_fluctuations_rounds[5][8];
+float item_fluctuations_rounds[5][8];
 int bankrupt_count = 0;
 //News* fakeNews;
 int prevPoints[2];
@@ -632,7 +632,7 @@ void handle_in_round_msg(int player_i){
             
             case 2: //get long with amount
                     ;             
-                int long_amount_target, long_amount_bought_amount;
+                int long_amount_target, long_amou.bought_amountsnt_bought_amount;
                 sscanf(buffer3, "%*s %d %d\n", &long_amount_target, &long_amount_bought_amount);
                 long_amount_target--;
 
@@ -906,8 +906,7 @@ void setPriceAndFluctuations(int round) {
     round--;
     for(int i = 0; i < 8; i++)
         for(int j = 0; j < 3; j++)
-            for(int k = 0; k < 8; k++)
-                item_fluctuations_rounds[round][i] = news_rounds[round][j].fluctuations[k];
+            item_fluctuations_rounds[round][i] += news_rounds[round][j].fluctuations[i];
 
     if (round == 0)
         for(int i = 0; i < 8; i++)
@@ -1000,9 +999,18 @@ void closingPhase(int round) {
 
             int earned = 0;
             for(int j = 0; j < 8; j++){
-                earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j];
+                if(players[i].character == 2){
+                    if(players[i].bought_amounts[j] < 0){
+                        earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j] * 2;
+                    }else{
+                        earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j] * 0.5;
+                    }
+                }else{
+                    earned += players[i].bought_amounts[j] * item_prices_rounds[round+1][j];
+                }
             }
             players[i].points += earned;
+
 
             char buffer8[MAXLINE];
             sprintf(buffer8, "your revenue on investment for this round is %d points.\nyou have %d point in total right now.\n", 
@@ -1020,6 +1028,10 @@ void closingPhase(int round) {
                 memset(buffer9, 0, sizeof(buffer9)); //clear buffer9
 
                 players[i].loan_expense = 0; //clear loan
+            }
+
+            for (int j = 0; j < 8; j++) {
+                players[i].bought_amounts[j] = 0; //clear bought amounts
             }
 
             if(players[i].points <= 0){
