@@ -165,6 +165,7 @@ int item_fluctuations_rounds[5][8];
 int bankrupt_count = 0;
 //News* fakeNews;
 int prevPoints[2];
+char bigBuffer[2][MAXLINE] = {"", ""};
 
 //Functions
 void wait_players();
@@ -876,7 +877,7 @@ int isContainDollarSign(char *str) {
 int isAllFin(){
     int cnt=0;
     for(int i = 0; i < MAX_PLAYERS; i++)
-        if(players[i].connfd != -1 && players[i].isFin == 1)
+        if(players[i].connfd != -1 && players[i].isFin == 0)
             return 0;
     return 1;
 }
@@ -931,7 +932,8 @@ void sendPointsAndNews(int round) {
             char buffer4[MAXLINE];
             sprintf(buffer4, "MARKET NEWS:\nNEWS 1: \t%s\nNEWS 2: \t%s\nNEWS 3: \t%s\n\n",
                     news_rounds[round][0].news_content, news_rounds[round][1].news_content, news_rounds[round][2].news_content);
-            Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
+            strcat(bigBuffer[i], buffer4);
+            //Writen(players[i].connfd, buffer4, strlen(buffer4)); //send market news
             memset(buffer4, 0, sizeof(buffer4)); //clear buffer4
         }
     }
@@ -942,15 +944,16 @@ void sendPricesInfo(int round) {
     for(int i = 0; i < MAX_PLAYERS; i++){ //send prices
         if(players[i].connfd != -1){
             char buffer5[MAXLINE];
-            sprintf(buffer5, "(1)%s:\t\t$%d\n(2)%s:\t$%d\n(3)%s:\t\t$%d\n(4)%s:\t\t$%d\n(5)%s:\t\t$%d\n(6)%s:\t\t$%d\n(7)%s:\t\t$%d\n(8)%s:\t$%d\n",
+            sprintf(buffer5, "\n\n(1)%s:\t\t$%d\n(2)%s:\t$%d\n(3)%s:\t\t$%d\n(4)%s:\t\t$%d\n(5)%s:\t\t$%d\n(6)%s:\t\t$%d\n(7)%s:\t\t$%d\n(8)%s:\t$%d\n",
                     ITEM_NAMES[0], item_prices_rounds[round][0], ITEM_NAMES[1], item_prices_rounds[round][1], 
                     ITEM_NAMES[2], item_prices_rounds[round][2], ITEM_NAMES[3], item_prices_rounds[round][3], 
                     ITEM_NAMES[4], item_prices_rounds[round][4], ITEM_NAMES[5], item_prices_rounds[round][5], 
                     ITEM_NAMES[6], item_prices_rounds[round][6], ITEM_NAMES[7], item_prices_rounds[round][7]);
             
-            fprintf(stdout, "%s\n", buffer5);
-
-            Writen(players[i].connfd, buffer5, strlen(buffer5)); //send item prices
+            //fprintf(stdout, "%s\n", buffer5);
+            strcat(bigBuffer[i], buffer5);
+            Writen(players[i].connfd, bigBuffer[i], strlen(bigBuffer[i])); 
+            //Writen(players[i].connfd, buffer5, strlen(buffer5)); //send item prices
             memset(buffer5, 0, sizeof(buffer5)); //clear buffer5
         }
     }

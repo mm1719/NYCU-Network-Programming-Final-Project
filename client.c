@@ -122,7 +122,7 @@ void xchg_data(FILE *fp, int sockfd)
     set_scr();
     moveTo(0, 0);
     char dst[20][80];
-    int len = read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
+    ssize_t len = Read(sockfd, recvline, MAXLINE); // recv:Welcome! Choose your character:...
     recvline[len] = '\0';
     int s_size = split(dst, recvline, "\n");
     // printf("%s", recvline);
@@ -160,23 +160,28 @@ void xchg_data(FILE *fp, int sockfd)
     clearScreen();
     moveTo(0, 0);
 
-    len = read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
+    len = Read(sockfd, recvline, MAXLINE); // recv: Round 1 message
     recvline[len] = '\0';
-    printf("%s", recvline);
-    printf("\n\n");
+    char *token = strtok(recvline, "\n");
+    while (token != NULL) {
+        printf("%s\n", token);
+        token = strtok(NULL, "\n");
+    }
+    //printf("%s", recvline);
+    printf("\n");
 
-    len = read(sockfd, recvline, MAXLINE); // recv: news
-    recvline[len] = '\0';
-    printf("%s", recvline);
-    printf("\n\n");
+    FD_ZERO(&rset);
+    FD_SET(sockfd, &rset);
+    maxfdp1 = sockfd + 1;
+    Select(maxfdp1, &rset, NULL, NULL, NULL);
+    if (FD_ISSET(sockfd, &rset))
+    { /* socket is readable */
+        if (Readline(sockfd, recvline, MAXLINE) == 0)
+            err_quit("str_cli: server terminated prematurely");
+        Fputs(recvline, stdout);
+    }
 
-    len = read(sockfd, recvline, MAXLINE); // recv: price
-    recvline[len] = '\0';
-    printf("%s", recvline);
-    printf("\n\n");
-
-
-    /*len = read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
+    /*len = Read(sockfd, recvline, MAXLINE); // recv: Round 1\n  You have 2or1,000,000 points!
     int player_points = 0, round;
     char tmp1[20];
     if (cha_no == 1)
@@ -195,7 +200,7 @@ void xchg_data(FILE *fp, int sockfd)
 
     /*char dst_2[20][80];
     int s_size2;
-    len = read(sockfd, recvline, MAXLINE); // recv: news
+    len = Read(sockfd, recvline, MAXLINE); // recv: news
     s_size2 = (dst_2, recvline, "\n");
 
     for (i = 0; i < s_size2; i++)
@@ -205,14 +210,14 @@ void xchg_data(FILE *fp, int sockfd)
     printf("\n");
     memset(recvline, 0, sizeof(recvline));*/
 
-    /*len = read(sockfd, recvline, MAXLINE); // recv: price
+    /*len = Read(sockfd, recvline, MAXLINE); // recv: price
     recvline[len] = '\0';
     printf("%s", recvline);
     printf("\n\n");
     */
-
+    //printf("不見了\n");
     printf("%s", instruction_format); // print instruction format
-    printf("\n\n");
+    printf("\n");
     printf("input:");
     memset(sendline, 0, sizeof(sendline));
     char sendline_2[MAXLINE];
@@ -302,7 +307,7 @@ void xchg_data(FILE *fp, int sockfd)
                 clearLine();
 
                 memset(recvline, 0, sizeof(recvline));
-                len = read(sockfd, recvline, MAXLINE); // recv: feedback from server
+                len = Read(sockfd, recvline, MAXLINE); // recv: feedback from server
                 recvline[len] = '\0';
                 printf("feedback:%s", recvline);
             }
@@ -351,7 +356,7 @@ void xchg_data(FILE *fp, int sockfd)
         Select(maxfdp1, &rset, NULL, NULL, NULL);
         if (FD_ISSET(sockfd, &rset))
         { /* socket is readable */
-            n = read(sockfd, recvline, MAXLINE);
+            n = Read(sockfd, recvline, MAXLINE);
             if (n == 0)
             {
                 if (stdineof == 1)
